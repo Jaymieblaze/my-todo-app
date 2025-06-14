@@ -6,13 +6,13 @@ const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => 
 
   return (
     <nav className="flex justify-center mt-6" aria-label="Pagination">
-      <ul className="flex items-center space-x-2">
+      <ul className="flex flex-wrap items-center gap-2 sm:gap-3">
         <li>
           <Button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             variant="outline"
-            size="sm"
+            className="min-h-touch min-w-touch"
             aria-label="Previous page"
           >
             Previous
@@ -23,8 +23,7 @@ const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => 
             <Button
               onClick={() => onPageChange(page)}
               variant={page === currentPage ? 'default' : 'outline'}
-              size="sm"
-              className={page === currentPage ? 'hover:bg-indigo-700' : ''}
+              className={`min-h-touch min-w-touch ${page === currentPage ? 'hover:bg-indigo-700' : ''}`}
               aria-current={page === currentPage ? 'page' : undefined}
               aria-label={`Page ${page}`}
             >
@@ -37,7 +36,7 @@ const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => 
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             variant="outline"
-            size="sm"
+            className="min-h-touch min-w-touch"
             aria-label="Next page"
           >
             Next
