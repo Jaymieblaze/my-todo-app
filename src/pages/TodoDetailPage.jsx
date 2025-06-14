@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom'; 
-
+import { useParams, useNavigate } from 'react-router-dom';
 import { fetchData } from '../utils/api';
 import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { LoaderSpin } from '../components/Icons';
 
-const TodoDetailPage = () => { 
-  const { todoId } = useParams(); 
+const TodoDetailPage = () => {
+  const { todoId } = useParams();
   const navigate = useNavigate();
-
   const [todo, setTodo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const API_URL = `https://jsonplaceholder.typicode.com/todos/${todoId}`;
   const CACHE_KEY = `todo_detail_${todoId}`;
 
@@ -31,7 +28,7 @@ const TodoDetailPage = () => {
       setLoading(false);
     };
     fetchTodoDetails();
-  }, [todoId]); 
+  }, [todoId]);
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl">

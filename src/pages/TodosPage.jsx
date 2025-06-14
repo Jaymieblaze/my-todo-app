@@ -1,9 +1,6 @@
-// src/pages/TodosPage.jsx
-import React, { useState, useEffect, useCallback } from 'react'; // Removed useContext here as AppContext is no longer used for navigation
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-// Import components and utilities
-import { fetchData, getNextTodoId, initializeNextTodoId } from '../utils/api';
+import { fetchData, performOperation, initializeNextTodoId, syncPendingOperations } from '../utils/api';
 import AddTodoModal from '../components/modals/AddTodoModal';
 import EditTodoModal from '../components/modals/EditTodoModal';
 import ConfirmDeleteModal from '../components/modals/ConfirmDeleteModal';
@@ -12,23 +9,21 @@ import Pagination from '../components/Pagination';
 import SearchFilter from '../components/SearchFilter';
 import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
-import { PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, LoaderSpin } from '../components/Icons'; // Import all specific icons and loader
-
+import { PlusIcon, LoaderSpin } from '../components/Icons';
 
 const TodosPage = () => {
-  const navigate = useNavigate(); 
-
+  const navigate = useNavigate();
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'completed', 'incomplete'
-
+  const [filterStatus, setFilterStatus] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTodo, setSelectedTodo] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(navigator.onLine ? 'Online' : 'Offline');
 
   const ITEMS_PER_PAGE = 10;
   const API_URL = 'https://jsonplaceholder.typicode.com/todos';
@@ -39,10 +34,8 @@ const TodosPage = () => {
     setError(null);
     const { data, error: fetchError } = await fetchData(API_URL, { method: 'GET' }, CACHE_KEY);
     if (data) {
-      setTodos(data);
-      // Ensure nextTodoId is higher than any existing ID using initializeNextTodoId
-      const maxId = data.reduce((max, todo) => Math.max(max, todo.id), 0);
-      initializeNextTodoId(maxId + 1); // Correctly call the utility to update the ID counter
+      setTodos(Array.isArray(data) ? data : [data]);
+      await initializeNextTodoId();
     }
     if (fetchError) {
       setError(fetchError);
@@ -52,54 +45,55 @@ const TodosPage = () => {
 
   useEffect(() => {
     fetchTodos();
+    // Initialize connection status listeners
+    const handleOnline = () => {
+      setConnectionStatus('Online');
+      syncPendingOperations();
+      fetchTodos();
+    };
+    const handleOffline = () => setConnectionStatus('Offline');
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [fetchTodos]);
 
   const handleAddTodo = async (newTodoData) => {
     try {
-      // Simulate API POST request
-      const { data, error: postError } = await fetchData(API_URL, {
+      const { data, error: postError } = await performOperation(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...newTodoData,
-          id: getNextTodoId(), // Assign a unique ID using the util
-        }),
-      });
-
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newTodoData }),
+      }, 'add');
       if (postError) throw postError;
-
-      // Optimistically update UI and local cache
       setTodos((prevTodos) => [data, ...prevTodos]);
-      // Update the cache explicitly after modification
-      localStorage.setItem(CACHE_KEY, JSON.stringify([data, ...todos]));
-      fetchTodos(); 
+      if (navigator.onLine) {
+        await syncPendingOperations();
+        await fetchTodos();
+      }
     } catch (e) {
       console.error('Error adding todo:', e);
-      throw e; 
+      throw e;
     }
   };
 
   const handleUpdateTodo = async (id, updatedData) => {
     try {
-      // Simulate API PUT request
-      const { data, error: putError } = await fetchData(`${API_URL}/${id}`, {
+      const { data, error: putError } = await performOperation(`${API_URL}/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData),
-      });
-
+      }, 'update');
       if (putError) throw putError;
-      // Optimistically update UI and local cache
       setTodos((prevTodos) =>
         prevTodos.map((todo) => (todo.id === id ? { ...todo, ...updatedData } : todo))
       );
-      // Update the cache explicitly after modification
-      localStorage.setItem(CACHE_KEY, JSON.stringify(todos.map((todo) => (todo.id === id ? { ...todo, ...updatedData } : todo))));
-      fetchTodos(); // Re-fetch to ensure full sync if needed
+      if (navigator.onLine) {
+        await syncPendingOperations();
+        await fetchTodos();
+      }
     } catch (e) {
       console.error('Error updating todo:', e);
       throw e;
@@ -108,18 +102,15 @@ const TodosPage = () => {
 
   const handleDeleteTodo = async (id) => {
     try {
-      // Simulate API DELETE request
-      const { error: deleteError } = await fetchData(`${API_URL}/${id}`, {
+      const { error: deleteError } = await performOperation(`${API_URL}/${id}`, {
         method: 'DELETE',
-      });
-
+      }, 'delete');
       if (deleteError) throw deleteError;
-
-      // Optimistically update UI and local cache
       setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
-      // Update the cache explicitly after modification
-      localStorage.setItem(CACHE_KEY, JSON.stringify(todos.filter((todo) => todo.id !== id)));
-      fetchTodos(); // Re-fetch to ensure full sync if needed
+      if (navigator.onLine) {
+        await syncPendingOperations();
+        await fetchTodos();
+      }
     } catch (e) {
       console.error('Error deleting todo:', e);
       throw e;
@@ -165,7 +156,7 @@ const TodosPage = () => {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>My Todo List</CardTitle>
-          <CardDescription>Manage your daily tasks efficiently.</CardDescription>
+          <CardDescription>Manage your daily tasks efficiently. Status: {connectionStatus}</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-end pt-4 pb-0">
           <Button onClick={() => setIsAddModalOpen(true)} className="mb-4">
@@ -202,13 +193,13 @@ const TodosPage = () => {
           ) : (
             <div className="space-y-2">
               {currentTodos.map((todo) => (
-                  <TodoItem
-                    key={todo.id}
-                    todo={todo}
-                    onViewDetail={handleViewDetail}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleOpenDeleteModal}
-                  />
+                <TodoItem
+                  key={todo.id}
+                  todo={todo}
+                  onViewDetail={handleViewDetail}
+                  onEdit={handleOpenEditModal}
+                  onDelete={handleOpenDeleteModal}
+                />
               ))}
             </div>
           )}
@@ -233,13 +224,13 @@ const TodosPage = () => {
         <>
           <EditTodoModal
             isOpen={isEditModalOpen}
-            onClose={() => setIsAddModalOpen(false)}
+            onClose={() => setIsEditModalOpen(false)}
             todo={selectedTodo}
             onUpdateTodo={handleUpdateTodo}
           />
           <ConfirmDeleteModal
             isOpen={isDeleteModalOpen}
-            onClose={() => setIsAddModalOpen(false)}
+            onClose={() => setIsDeleteModalOpen(false)}
             todo={selectedTodo}
             onDeleteTodo={handleDeleteTodo}
           />
