@@ -73,3 +73,11 @@ In the project directory, you can run the following commands:
 - **Prettier**: For code linting and formatting.
 
 ### Architecture Descisions
+- **Component-Based Structure**: Reusable components (`Button`, `Input`, `Checkbox`, `Card`, `Dialog`) promote modularity and consistency.
+- **Declarative Routing**: React Router v7’s `<Routes>` and `<Route>` provide simple, maintainable navigation.
+- **State Management**: Local component state with `useState` and `useEffect` for simplicity, as global state (e.g., Redux) isn’t needed for this scope.
+- **Offline Support**: Custom `performOperation` and `syncPendingOperations` utilities cache operations in local storage for offline CRUD.
+- **Responsive Design**: Tailwind’s responsive utilities (e.g., `sm:`,` md:`, `lg:`).
+- **API Integration**: JSONPlaceholder provides a reliable mock backend, avoiding the need for a custom server.
+- **Error Handling**: Centralized error handling in `fetchData` and component-level UI feedback (e.g., error cards, modal messages).
+- **Accessibility**: WCAG-compliant touch targets (44x44px), `aria-label`, and focus management enhance usability.
