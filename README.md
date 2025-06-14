@@ -115,7 +115,7 @@ The app uses the JSONPlaceholder API for todo data. Below are the endpoints and 
 ![Todo List Page Screenshot](screenshots/todo_list-page.png)
 *Displays todos with search, filter, pagination, and action buttons.*
 ### Todo Detail Page
-![Todo Detail Page Screenshot](screenshots/todo_list-page.png)
+![Todo Detail Page Screenshot](screenshots/todo_detail_page.png)
 *Displays todos with search, filter, pagination, and action buttons.*
 ### Add Todo Modal
 ![Add Todo Modal Screenshot](screenshots/todo_modal_page.png)
