@@ -6,12 +6,12 @@ import TodosPage from './pages/TodosPage';
 import TodoDetailPage from './pages/TodoDetailPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import NotFoundPage from './pages/NotFoundPage';
-// import Button from './components/Button'; 
 
 export const AppContext = createContext(undefined);
 
 const App = () => {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const appProvidedContext = {
     navigateTo: useCallback((path) => navigate(path), [navigate]),
@@ -36,10 +36,24 @@ const App = () => {
                 My React Todo App
               </Link>
             </h1>
-            <ul className="flex space-x-4">
+            <div className="sm:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2"
+                aria-label="Toggle menu"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
+                </svg>
+              </button>
+            </div>
+            <ul className={`sm:flex sm:space-x-4 ${isMenuOpen ? 'block' : 'hidden'} sm:block absolute sm:static top-16 left-0 right-0 bg-indigo-600 sm:bg-transparent p-4 sm:p-0`}>
               <li>
-                {/* React Router's Link component for navigation */}
-                <Link to="/todos" className="text-white hover:text-indigo-100 px-4 py-2 rounded-md">
+                <Link
+                  to="/todos"
+                  className="block text-white hover:text-indigo-100 px-4 py-2 sm:px-3 sm:py-2 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Todos
                 </Link>
               </li>
@@ -49,14 +63,10 @@ const App = () => {
 
         <main className="py-8">
           <ErrorBoundary showDetails={true}>
-            {/* Routes component from react-router-dom */}
             <Routes>
-              {/* Redirect from the root path to /todos */}
               <Route path="/" element={<Navigate to="/todos" replace />} />
-              {/* Define routes for the application */}
               <Route path="/todos" element={<TodosPage />} />
               <Route path="/todos/:todoId" element={<TodoDetailPage />} />
-              {/* Catch-all route for any undefined paths (404 page) */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ErrorBoundary>
