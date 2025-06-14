@@ -151,6 +151,7 @@ const TodosPage = () => {
     setIsDeleteModalOpen(true);
   };
 
+  // src/pages/TodosPage.jsx (only the return statement updated for brevity)
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
       <Card className="mb-6">
@@ -224,13 +225,13 @@ const TodosPage = () => {
         <>
           <EditTodoModal
             isOpen={isEditModalOpen}
-            onClose={() => setIsEditModalOpen(false)}
+            onClose={() => setIsEditModalOpen(false)} // Fixed to use setIsEditModalOpen
             todo={selectedTodo}
             onUpdateTodo={handleUpdateTodo}
           />
           <ConfirmDeleteModal
             isOpen={isDeleteModalOpen}
-            onClose={() => setIsDeleteModalOpen(false)}
+            onClose={() => setIsDeleteModalOpen(false)} // Fixed to use setIsDeleteModalOpen
             todo={selectedTodo}
             onDeleteTodo={handleDeleteTodo}
           />

@@ -11,7 +11,7 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }) => {
   const [completed, setCompleted] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState(null);
-
+  
   const handleSubmit = async () => {
     if (!title.trim()) {
       setError('Title cannot be empty.');
@@ -20,17 +20,21 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }) => {
     setAdding(true);
     setError(null);
     try {
-      await onAddTodo({ title, completed, userId: 1 }); // Assign to a default userId for demonstration
+      await onAddTodo({ title, completed, userId: 1 });
       setTitle('');
       setCompleted(false);
-      onClose();
+      if (!navigator.onLine) {
+        setError('Todo added locally, will sync when online.');
+        setTimeout(onClose, 1500); // Close after showing message
+      } else {
+        onClose();
+      }
     } catch (e) {
       setError(`Failed to add todo: ${e.message}`);
     } finally {
       setAdding(false);
     }
   };
-
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Add New Todo" description="Enter the details for your new todo item.">
       <div className="grid gap-4 py-4">
