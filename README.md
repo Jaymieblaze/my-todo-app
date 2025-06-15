@@ -109,6 +109,10 @@ The app uses the JSONPlaceholder API for todo data. Below are the endpoints and 
     - **Response**: Empty response (status 200)
     - **Usage**: Deletes a todo via the “Confirm Deletion” modal.
 
+### Offline Handling
+- Operations are queued in local storage when offline.
+- Synced automatically when the browser detects an online state (navigator.onLine).
+
 ## Screenshots and Media
 
 ### Todo List Page
