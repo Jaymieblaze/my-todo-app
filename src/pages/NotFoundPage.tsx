@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card'; 
-import Button from '../components/Button'; 
+import { useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
+import Button from '../components/Button';
 
 const NotFoundPage = () => {
   const navigate = useNavigate();

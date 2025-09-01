@@ -14,7 +14,6 @@ interface AppContextType {
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// No longer using React.FC
 const App = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -27,7 +26,7 @@ const App = () => {
   const appStyle: React.CSSProperties = {
     fontFamily: '"Inter", sans-serif',
     minHeight: '100vh',
-    backgroundColor: '#f8fafc', // gray-50
+    backgroundColor: '#f8fafc', 
   };
 
   return (

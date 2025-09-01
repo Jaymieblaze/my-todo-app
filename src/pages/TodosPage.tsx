@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { fetchData, performOperation, initializeNextTodoId, syncPendingOperations } from '../utils/api';
+import { Todo } from '../utils/db'; 
 import AddTodoModal from '../components/modals/AddTodoModal';
 import EditTodoModal from '../components/modals/EditTodoModal';
 import ConfirmDeleteModal from '../components/modals/ConfirmDeleteModal';
@@ -11,19 +12,27 @@ import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { PlusIcon, LoaderSpin } from '../components/Icons';
 
+// Define specific types for clarity
+type FilterStatus = 'all' | 'completed' | 'incomplete';
+type ConnectionStatus = 'Online' | 'Offline';
+type NewTodo = Omit<Todo, 'id' | 'userId' | 'completed'>;
+
 const TodosPage = () => {
   const navigate = useNavigate();
-  const [todos, setTodos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedTodo, setSelectedTodo] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState(navigator.onLine ? 'Online' : 'Offline');
+  // State variables
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
+    navigator.onLine ? 'Online' : 'Offline'
+  );
 
   const ITEMS_PER_PAGE = 10;
   const API_URL = 'https://jsonplaceholder.typicode.com/todos';
@@ -32,7 +41,8 @@ const TodosPage = () => {
   const fetchTodos = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await fetchData(API_URL, { method: 'GET' }, CACHE_KEY);
+    // Generic fetchData function call
+    const { data, error: fetchError } = await fetchData<Todo[]>(API_URL, { method: 'GET' }, CACHE_KEY);
     if (data) {
       setTodos(Array.isArray(data) ? data : [data]);
       await initializeNextTodoId();
@@ -60,15 +70,21 @@ const TodosPage = () => {
     };
   }, [fetchTodos]);
 
-  const handleAddTodo = async (newTodoData) => {
+  // Function parameters
+  const handleAddTodo = async (newTodoData: NewTodo) => {
     try {
+      const fullTodo: Omit<Todo, 'id'> = {
+          ...newTodoData,
+          userId: 1, // Default userId
+          completed: false,
+      }
       const { data, error: postError } = await performOperation(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newTodoData }),
+        body: JSON.stringify(fullTodo),
       }, 'add');
       if (postError) throw postError;
-      setTodos((prevTodos) => [data, ...prevTodos]);
+      if (data) setTodos((prevTodos) => [data as Todo, ...prevTodos]);
       if (navigator.onLine) {
         await syncPendingOperations();
         await fetchTodos();
@@ -79,9 +95,9 @@ const TodosPage = () => {
     }
   };
 
-  const handleUpdateTodo = async (id, updatedData) => {
+  const handleUpdateTodo = async (id: number, updatedData: Partial<Todo>) => {
     try {
-      const { data, error: putError } = await performOperation(`${API_URL}/${id}`, {
+      const { error: putError } = await performOperation(`${API_URL}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData),
@@ -100,7 +116,7 @@ const TodosPage = () => {
     }
   };
 
-  const handleDeleteTodo = async (id) => {
+  const handleDeleteTodo = async (id: number) => {
     try {
       const { error: deleteError } = await performOperation(`${API_URL}/${id}`, {
         method: 'DELETE',
@@ -131,22 +147,22 @@ const TodosPage = () => {
   const currentTodos = filteredTodos.slice(startIndex, endIndex);
   const totalPages = Math.ceil(filteredTodos.length / ITEMS_PER_PAGE);
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
 
-  const handleViewDetail = (id) => {
+  const handleViewDetail = (id: number) => {
     navigate(`/todos/${id}`);
   };
 
-  const handleOpenEditModal = (todo) => {
+  const handleOpenEditModal = (todo: Todo) => {
     setSelectedTodo(todo);
     setIsEditModalOpen(true);
   };
 
-  const handleOpenDeleteModal = (todo) => {
+  const handleOpenDeleteModal = (todo: Todo) => {
     setSelectedTodo(todo);
     setIsDeleteModalOpen(true);
   };
@@ -171,7 +187,7 @@ const TodosPage = () => {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             filterStatus={filterStatus}
-            onFilterChange={setFilterStatus}
+            onFilterChange={(value: string) => setFilterStatus(value as FilterStatus)}
           />
 
           {loading ? (

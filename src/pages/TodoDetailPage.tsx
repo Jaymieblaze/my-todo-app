@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate } from 'react-router-dom';
 import { fetchData } from '../utils/api';
+import { Todo } from '../utils/db'; // Import the Todo type
 import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { LoaderSpin } from '../components/Icons';
 
 const TodoDetailPage = () => {
-  const { todoId } = useParams();
+  const { todoId } = useParams<{ todoId: string }>(); // Explicitly type the route parameter
   const navigate = useNavigate();
-  const [todo, setTodo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  // ## 1. Type the component's state
+  const [todo, setTodo] = useState<Todo | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Constants for API and caching
   const API_URL = `https://jsonplaceholder.typicode.com/todos/${todoId}`;
   const CACHE_KEY = `todo_detail_${todoId}`;
 
   useEffect(() => {
     const fetchTodoDetails = async () => {
+      // Ensure todoId is present before fetching
+      if (!todoId) {
+        setError(new Error("No Todo ID provided."));
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      const { data, error: fetchError } = await fetchData(API_URL, { method: 'GET' }, CACHE_KEY);
+      
+      // ## 2. Type the generic fetchData function call
+      const { data, error: fetchError } = await fetchData<Todo>(API_URL, { method: 'GET' }, CACHE_KEY);
+      
       if (data) {
         setTodo(data);
       }
@@ -28,7 +43,7 @@ const TodoDetailPage = () => {
       setLoading(false);
     };
     fetchTodoDetails();
-  }, [todoId]);
+  }, [todoId, API_URL, CACHE_KEY]); // Add dependencies to useEffect array
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl min-h-[calc(100vh-4rem)]">

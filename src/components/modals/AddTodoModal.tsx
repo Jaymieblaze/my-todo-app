@@ -1,17 +1,34 @@
 import React, { useState } from 'react';
-import Dialog from '../Dialog'; 
-import Button from '../Button'; 
-import Input from '../Input'; 
-import Checkbox from '../Checkbox'; 
-import { PlusIcon, LoaderSpin } from '../Icons'; 
+import Dialog from '../Dialog';
+import Button from '../Button';
+import Input from '../Input';
+import { PlusIcon, LoaderSpin } from '../Icons';
+import { Todo } from '../../utils/db';
 
+// Shape of the data the parent component expects for a new todo
+type NewTodo = Omit<Todo, 'id' | 'userId' | 'completed'>;
 
-const AddTodoModal = ({ isOpen, onClose, onAddTodo }) => {
-  const [title, setTitle] = useState('');
-  const [completed, setCompleted] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [error, setError] = useState(null);
-  
+// Props for the modal component
+interface AddTodoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAddTodo: (newTodo: NewTodo) => Promise<void>;
+}
+
+const AddTodoModal = ({ isOpen, onClose, onAddTodo }: AddTodoModalProps) => {
+  // ## 1. Type the component's state
+  const [title, setTitle] = useState<string>('');
+  const [adding, setAdding] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ## 2. Reset state on close for a clean slate next time
+  const handleClose = () => {
+    setTitle('');
+    setError(null);
+    setAdding(false);
+    onClose();
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       setError('Title cannot be empty.');
@@ -20,50 +37,48 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }) => {
     setAdding(true);
     setError(null);
     try {
-      await onAddTodo({ title, completed, userId: 1 });
-      setTitle('');
-      setCompleted(false);
+      // ## 3. Pass only the data required by the parent
+      await onAddTodo({ title });
+      
       if (!navigator.onLine) {
-        setError('Todo added locally, will sync when online.');
-        setTimeout(onClose, 1500); // Close after showing message
+        setError('Todo added locally. It will sync when you are back online.');
+        // Allow user to see the message before closing
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
       } else {
-        onClose();
+        handleClose();
       }
     } catch (e) {
-      setError(`Failed to add todo: ${e.message}`);
-    } finally {
-      setAdding(false);
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
+      setError(`Failed to add todo: ${errorMessage}`);
+      setAdding(false); // Re-enable button on error
     }
   };
+
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title="Add New Todo" description="Enter the details for your new todo item.">
+    <Dialog isOpen={isOpen} onClose={handleClose} title="Add New Todo" description="Enter the details for your new todo item.">
       <div className="grid gap-4 py-4">
         <div className="grid grid-cols-4 items-center gap-4">
           <label htmlFor="title" className="text-right text-sm font-medium">Title</label>
           <Input
             id="title"
             value={title}
-            onChange={(e) => { setTitle(e.target.value); setError(null); }}
+            // ## 4. Type the event object for the onChange handler
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setTitle(e.target.value);
+              setError(null); // Clear error on new input
+            }}
             className="col-span-3"
             placeholder="e.g., Buy groceries"
             aria-label="Todo title"
           />
         </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <div className="col-start-2 col-span-3">
-            <Checkbox
-              id="completed"
-              label="Completed"
-              checked={completed}
-              onChange={(e) => setCompleted(e.target.checked)}
-            />
-          </div>
-        </div>
         {error && <p className="text-red-500 text-sm text-center col-span-4">{error}</p>}
       </div>
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose} disabled={adding}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={adding}>
+        <Button variant="outline" onClick={handleClose} disabled={adding}>Cancel</Button>
+        <Button onClick={handleSubmit} disabled={adding || !title.trim()}>
           {adding ? <LoaderSpin className="mr-2" /> : <PlusIcon className="mr-2 h-4 w-4" />}
           {adding ? 'Adding...' : 'Add Todo'}
         </Button>

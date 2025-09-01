@@ -1,8 +1,18 @@
-import Button from './Button'; 
-import { EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from './Icons'; 
-import { Card } from './Card'; 
+import { Todo } from '../utils/db'; 
+import Button from './Button';
+import { EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from './Icons';
+import { Card } from './Card';
 
-const TodoItem = ({ todo, onViewDetail, onEdit, onDelete }) => (
+// Interface for the component's props
+interface TodoItemProps {
+  todo: Todo;
+  onViewDetail: (id: number) => void;
+  onEdit: (todo: Todo) => void;
+  onDelete: (todo: Todo) => void;
+}
+
+// Apply the props interface to the component
+const TodoItem = ({ todo, onViewDetail, onEdit, onDelete }: TodoItemProps) => (
   <Card className="shadow-sm hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between p-4">
       <div className="flex-1 flex items-center space-x-3 cursor-pointer" onClick={() => onViewDetail(todo.id)}>

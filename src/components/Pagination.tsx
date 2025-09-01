@@ -1,6 +1,16 @@
+import React from 'react';
 import Button from './Button';
 
-const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }) => {
+// Interface for the component's props
+interface PaginationProps {
+  totalItems: number;
+  itemsPerPage: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+}
+
+// Apply the props interface to the component
+const Pagination = ({ totalItems, itemsPerPage, currentPage, onPageChange }: PaginationProps) => {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
 

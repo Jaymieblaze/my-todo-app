@@ -1,13 +1,26 @@
+import React from 'react';
 import Input from './Input';
 import Button from './Button';
 
-const SearchFilter = ({ searchTerm, onSearchChange, filterStatus, onFilterChange }) => (
+// Type for the possible filter statuses
+type FilterStatus = 'all' | 'completed' | 'incomplete';
+
+// Interface for the component's props
+interface SearchFilterProps {
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  filterStatus: FilterStatus;
+  onFilterChange: (status: FilterStatus) => void;
+}
+
+// Apply the props interface to the component
+const SearchFilter = ({ searchTerm, onSearchChange, filterStatus, onFilterChange }: SearchFilterProps) => (
   <div className="flex flex-col sm:flex-row gap-4 mb-6">
     <Input
       type="text"
       placeholder="Search todos by title..."
       value={searchTerm}
-      onChange={(e) => onSearchChange(e.target.value)}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
       className="flex-1"
       aria-label="Search todos"
     />
@@ -38,3 +51,4 @@ const SearchFilter = ({ searchTerm, onSearchChange, filterStatus, onFilterChange
 );
 
 export default SearchFilter;
+
