@@ -1,23 +1,43 @@
-import React from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './Card';
 import Button from './Button';
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
+// ## 1. Define the types for the component's props
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  showDetails?: boolean; // Optional prop to control error detail visibility
+}
 
-  static getDerivedStateFromError(error) {
+// ## 2. Define the types for the component's state
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
+
+// ## 3. Apply the prop and state types to the component
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Use public class field for cleaner state initialization
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
+  };
+
+  // ## 4. Type the lifecycle method's parameters and return value
+  static getDerivedStateFromError(_: Error): Partial<ErrorBoundaryState> {
+    // Update state so the next render will show the fallback UI.
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
+  // ## 5. Type the lifecycle method's parameters
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    // You can log the error to an error reporting service
     console.error("Uncaught error:", error, errorInfo);
     this.setState({ error, errorInfo });
   }
 
-  render() {
+  public render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">

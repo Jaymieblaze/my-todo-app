@@ -1,24 +1,30 @@
-import React, { useState, useEffect, createContext, useCallback, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Link, useParams, useNavigate, Navigate } from 'react-router';
+import React, { useState, useCallback, createContext } from 'react';
+import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 
-//Components and pages 
+// Components and pages
 import TodosPage from './pages/TodosPage';
 import TodoDetailPage from './pages/TodoDetailPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import NotFoundPage from './pages/NotFoundPage';
 
-export const AppContext = createContext(undefined);
+// Define the context type
+interface AppContextType {
+  navigateTo: (path: string) => void;
+}
 
+export const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// No longer using React.FC
 const App = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const appProvidedContext = {
-    navigateTo: useCallback((path) => navigate(path), [navigate]),
+  const appProvidedContext: AppContextType = {
+    navigateTo: useCallback((path: string) => navigate(path), [navigate]),
   };
 
   // Basic styling
-  const appStyle = {
+  const appStyle: React.CSSProperties = {
     fontFamily: '"Inter", sans-serif',
     minHeight: '100vh',
     backgroundColor: '#f8fafc', // gray-50
@@ -43,7 +49,7 @@ const App = () => {
                 aria-label="Toggle menu"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
                 </svg>
               </button>
             </div>
