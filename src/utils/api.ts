@@ -1,4 +1,10 @@
-import db, { Todo, PendingOperation } from './db'; // Assuming types are exported from db.ts
+import db, { Todo, PendingOperation } from './db';
+
+// TYPE GUARD FUNCTION
+// This function checks if an object is a Todo and tells TypeScript it's safe to treat it as such.
+function isTodo(obj: any): obj is Todo {
+  return obj && typeof obj === 'object' && typeof obj.id === 'number' && typeof obj.title === 'string';
+}
 
 let nextTodoId = 201;
 
@@ -22,9 +28,7 @@ export const fetchData = async <T>(url: string, options: FetchOptions = { method
   // Check if offline
   if (!navigator.onLine && options.method === 'GET') {
     try {
-      // Load from IndexedDB
       if (url.includes('/todos/') && url.match(/\/todos\/\d+$/)) {
-        // Fetch single todo
         const id = parseInt(url.split('/').pop() || '0');
         const todo = await db.todos.get(id);
         if (todo && !todo.isDeleted) {
@@ -33,7 +37,6 @@ export const fetchData = async <T>(url: string, options: FetchOptions = { method
           throw new Error('Todo not found');
         }
       } else {
-        // Fetch all todos
         const todos = await db.todos.where('isDeleted').equals(0).toArray();
         data = todos as T;
       }
@@ -52,7 +55,6 @@ export const fetchData = async <T>(url: string, options: FetchOptions = { method
       try {
         data = JSON.parse(cachedData) as T;
         loading = false;
-        // Sync IndexedDB with cache in background
         syncLocalStorageToIndexedDB(data, cacheKey);
         return { data, error, loading };
       } catch (e) {
@@ -83,9 +85,10 @@ export const fetchData = async <T>(url: string, options: FetchOptions = { method
             isSynced: 1,
             isDeleted: 0
           })));
-        } else if (data && typeof data === 'object' && 'id' in data) {
+          // ## 2. USE THE TYPE GUARD
+        } else if (isTodo(data)) {
           await db.todos.put({
-            ...(data as Todo),
+            ...data,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             isSynced: 1,
@@ -130,7 +133,7 @@ export const performOperation = async (url: string, options: FetchOptions = {}, 
       let todoData: Partial<Todo> = options.body ? JSON.parse(options.body as string) : {};
       const timestamp = new Date().toISOString();
       const operation: Omit<PendingOperation, 'opId'> = { type: operationType, todoId, data: todoData, timestamp };
-      
+
       if (operationType === 'add') {
         todoData = { ...todoData, id: todoId, createdAt: timestamp, updatedAt: timestamp, isSynced: 0, isDeleted: 0 };
         await db.todos.put(todoData as Todo);
@@ -160,7 +163,7 @@ export const performOperation = async (url: string, options: FetchOptions = {}, 
     const responseData = options.method !== 'DELETE' ? await response.json() : { id: todoId };
     data = responseData;
     const timestamp = new Date().toISOString();
-    
+
     // Update IndexedDB
     if (operationType === 'add') {
       await db.todos.put({ ...(data as Todo), createdAt: timestamp, updatedAt: timestamp, isSynced: 1, isDeleted: 0 });
@@ -169,11 +172,11 @@ export const performOperation = async (url: string, options: FetchOptions = {}, 
     } else if (operationType === 'delete') {
       await db.todos.update(todoId, { isDeleted: 1, updatedAt: timestamp, isSynced: 1 });
     }
-    
+
     // Update cache
     const cachedTodosStr = localStorage.getItem('todos_data') || '[]';
     let cachedTodos: Todo[] = JSON.parse(cachedTodosStr);
-    
+
     if (operationType === 'add') {
       cachedTodos.unshift(data as Todo);
     } else if (operationType === 'update') {
@@ -183,7 +186,7 @@ export const performOperation = async (url: string, options: FetchOptions = {}, 
       cachedTodos = cachedTodos.filter(t => t.id !== todoId);
     }
     localStorage.setItem('todos_data', JSON.stringify(cachedTodos));
-    
+
   } catch (e) {
     error = e instanceof Error ? e : new Error('An unknown error occurred');
   }
@@ -192,7 +195,7 @@ export const performOperation = async (url: string, options: FetchOptions = {}, 
 
 export const syncPendingOperations = async (): Promise<void> => {
   if (!navigator.onLine) return;
-  
+
   const operations = await db.pendingOperations.toArray();
   const sortedOperations = operations.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
@@ -205,9 +208,9 @@ export const syncPendingOperations = async (): Promise<void> => {
         headers: { 'Content-Type': 'application/json' },
         body: op.type !== 'delete' ? JSON.stringify(op.data) : undefined
       };
-      
+
       const { data, error } = await performOperation(url, options, op.type);
-      
+
       if (!error && data) {
         const timestamp = new Date().toISOString();
         if (op.type === 'add' || op.type === 'update') {
