@@ -1,4 +1,16 @@
-const Dialog = ({ isOpen, onClose, title, children, description = '' }) => {
+import React, { ReactNode } from 'react';
+
+// Interface for the component's props
+interface DialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string; // Optional prop
+  children: ReactNode; // Type for any valid React content
+}
+
+// Apply the props interface to the component
+const Dialog = ({ isOpen, onClose, title, children, description = '' }: DialogProps) => {
   if (!isOpen) return null;
 
   return (

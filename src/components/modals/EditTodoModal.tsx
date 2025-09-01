@@ -1,25 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import Dialog from '../Dialog'; 
-import Button from '../Button'; 
-import Input from '../Input'; 
-import Checkbox from '../Checkbox'; 
-import { EditIcon, LoaderSpin } from '../Icons'; 
+import { Todo } from '../../utils/db';
+import Dialog from '../Dialog';
+import Button from '../Button';
+import Input from '../Input';
+import Checkbox from '../Checkbox';
+import { EditIcon, LoaderSpin } from '../Icons';
 
-const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }) => {
-  const [title, setTitle] = useState(todo ? todo.title : '');
-  const [completed, setCompleted] = useState(todo ? todo.completed : false);
-  const [updating, setUpdating] = useState(false);
-  const [error, setError] = useState(null);
+// Interface for the component's props
+interface EditTodoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  todo: Todo | null;
+  onUpdateTodo: (id: number, updatedData: Partial<Todo>) => Promise<void>;
+}
 
+const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }: EditTodoModalProps) => {
+  // Type the component's internal state
+  const [title, setTitle] = useState<string>('');
+  const [completed, setCompleted] = useState<boolean>(false);
+  const [updating, setUpdating] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ## Using useEffect to populate state when the todo prop changes
   useEffect(() => {
     if (todo) {
       setTitle(todo.title);
       setCompleted(todo.completed);
+      setError(null); // Clear previous errors when a new todo is loaded
     }
   }, [todo]);
 
   const handleSubmit = async () => {
+    // Guard against submission if there's no todo
     if (!todo) return;
+
     if (!title.trim()) {
       setError('Title cannot be empty.');
       return;
@@ -28,25 +42,32 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }) => {
     setError(null);
     try {
       await onUpdateTodo(todo.id, { title, completed });
-      onClose();
+      onClose(); // Close modal on successful update
     } catch (e) {
-      setError(`Failed to update todo: ${e.message}`);
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
+      setError(`Failed to update todo: ${errorMessage}`);
     } finally {
       setUpdating(false);
     }
   };
 
-  if (!todo) return null;
+  // If there is no todo, don't render the modal content
+  if (!todo) {
+    return null;
+  }
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} title="Edit Todo" description={`Editing todo ID: ${todo.id}`}>
+    <Dialog isOpen={isOpen} onClose={onClose} title="Edit Todo" description={`Update the details for your todo item.`}>
       <div className="grid gap-4 py-4">
         <div className="grid grid-cols-4 items-center gap-4">
           <label htmlFor="edit-title" className="text-right text-sm font-medium">Title</label>
           <Input
             id="edit-title"
             value={title}
-            onChange={(e) => { setTitle(e.target.value); setError(null); }}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setTitle(e.target.value);
+              setError(null);
+            }}
             className="col-span-3"
             placeholder="e.g., Buy groceries"
             aria-label="Todo title"
@@ -58,7 +79,7 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }) => {
               id="edit-completed"
               label="Completed"
               checked={completed}
-              onChange={(e) => setCompleted(e.target.checked)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCompleted(e.target.checked)}
             />
           </div>
         </div>
@@ -76,3 +97,4 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }) => {
 };
 
 export default EditTodoModal;
+
