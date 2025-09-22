@@ -1,8 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
-// TODO: Add your own Firebase configuration from your Firebase project settings
-// IMPORTANT: Replace this with the firebaseConfig object you copied from the Firebase console
 const firebaseConfig = {
   apiKey: "AIzaSyAhhEtueD44Y1npjPtJ3_3nDTbyMnLvf9Y",
   authDomain: "mytodoapp-f521e.firebaseapp.com",
