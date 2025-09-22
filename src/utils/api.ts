@@ -1,21 +1,18 @@
 import db, { Todo, PendingOperation } from './db';
 
-// TYPE GUARD FUNCTION
-// This function checks if an object is a Todo and tells TypeScript it's safe to treat it as such.
-function isTodo(obj: any): obj is Todo {
-  return obj && typeof obj === 'object' && typeof obj.id === 'number' && typeof obj.title === 'string';
-}
-
 let nextTodoId = 201;
 
-// Define a generic response type for fetchData
+// Helper to check if an object is a Todo
+function isTodo(obj: any): obj is Todo {
+  return obj && typeof obj === 'object' && 'id' in obj && 'title' in obj;
+}
+
 interface FetchResponse<T> {
   data: T | null;
   error: Error | null;
   loading: boolean;
 }
 
-// Define the shape of fetch options
 interface FetchOptions extends RequestInit {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
 }
@@ -25,215 +22,144 @@ export const fetchData = async <T>(url: string, options: FetchOptions = { method
   let error: Error | null = null;
   let loading = true;
 
-  // Check if offline
   if (!navigator.onLine && options.method === 'GET') {
     try {
       if (url.includes('/todos/') && url.match(/\/todos\/\d+$/)) {
         const id = parseInt(url.split('/').pop() || '0');
         const todo = await db.todos.get(id);
-        if (todo && !todo.isDeleted) {
-          data = todo as T;
-        } else {
-          throw new Error('Todo not found');
-        }
+        data = (todo && !todo.isDeleted) ? todo as T : null;
       } else {
         const todos = await db.todos.where('isDeleted').equals(0).toArray();
         data = todos as T;
       }
-      loading = false;
+      if (!data) throw new Error('Data not found in local storage.');
     } catch (e) {
       error = e instanceof Error ? e : new Error('An unknown error occurred');
-      loading = false;
     }
+    loading = false;
     return { data, error, loading };
   }
+  
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const responseData = await response.json();
+    data = responseData as T;
 
-  // Online: Try cache first for GET requests
-  if (navigator.onLine && cacheKey && options.method === 'GET') {
-    const cachedData = localStorage.getItem(cacheKey);
-    if (cachedData) {
-      try {
-        data = JSON.parse(cachedData) as T;
-        loading = false;
-        syncLocalStorageToIndexedDB(data, cacheKey);
-        return { data, error, loading };
-      } catch (e) {
-        console.error('Failed to parse cached data:', e);
-        localStorage.removeItem(cacheKey);
+    if (cacheKey && options.method === 'GET') {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      if (Array.isArray(data)) {
+        await db.todos.bulkPut(data.map((todo: Todo) => ({
+          ...todo, isSynced: 1, isDeleted: 0
+        })));
+      } else if (isTodo(data)) {
+        await db.todos.put({ ...data, isSynced: 1, isDeleted: 0 });
       }
     }
+  } catch (e) {
+    error = e instanceof Error ? e : new Error('An unknown error occurred');
   }
-
-  // Fetch from API if online
-  if (navigator.onLine) {
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const responseData = await response.json();
-      data = responseData as T;
-
-      if (cacheKey && options.method === 'GET') {
-        localStorage.setItem(cacheKey, JSON.stringify(data));
-        // Update IndexedDB
-        if (Array.isArray(data)) {
-          await db.todos.bulkPut(data.map((todo: Todo) => ({
-            ...todo,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isSynced: 1,
-            isDeleted: 0
-          })));
-          // ## 2. USE THE TYPE GUARD
-        } else if (isTodo(data)) {
-          await db.todos.put({
-            ...data,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isSynced: 1,
-            isDeleted: 0
-          });
-        }
-      }
-    } catch (e) {
-      error = e instanceof Error ? e : new Error('An unknown error occurred');
-    } finally {
-      loading = false;
-    }
-  }
-
+  loading = false;
   return { data, error, loading };
-};
-
-// Sync localStorage cache to IndexedDB
-const syncLocalStorageToIndexedDB = async (data: any, cacheKey: string): Promise<void> => {
-  if (cacheKey === 'todos_data' && Array.isArray(data)) {
-    await db.todos.bulkPut(data.map((todo: Todo) => ({
-      ...todo,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isSynced: 1,
-      isDeleted: 0
-    })));
-  }
 };
 
 type OperationType = 'add' | 'update' | 'delete';
 
+// ## Refactored function for a more robust offline-first strategy
 export const performOperation = async (url: string, options: FetchOptions = {}, operationType: OperationType): Promise<{ data: Partial<Todo> | null, error: Error | null }> => {
   const todoIdMatch = url.match(/\/todos\/(\d+)$/);
   const todoId = todoIdMatch ? parseInt(todoIdMatch[1]) : getNextTodoId();
   let data: Partial<Todo> | null = null;
-  let error: Error | null = null;
-
-  // Offline: Queue operation
-  if (!navigator.onLine) {
-    try {
-      let todoData: Partial<Todo> = options.body ? JSON.parse(options.body as string) : {};
-      const timestamp = new Date().toISOString();
-      const operation: Omit<PendingOperation, 'opId'> = { type: operationType, todoId, data: todoData, timestamp };
-
-      if (operationType === 'add') {
-        todoData = { ...todoData, id: todoId, createdAt: timestamp, updatedAt: timestamp, isSynced: 0, isDeleted: 0 };
-        await db.todos.put(todoData as Todo);
-        await db.pendingOperations.add(operation);
-        data = todoData;
-      } else if (operationType === 'update') {
-        await db.todos.update(todoId, { ...todoData, updatedAt: timestamp, isSynced: 0 });
-        await db.pendingOperations.add(operation);
-        data = await db.todos.get(todoId) || null;
-      } else if (operationType === 'delete') {
-        await db.todos.update(todoId, { isDeleted: 1, updatedAt: timestamp, isSynced: 0 });
-        await db.pendingOperations.add({ ...operation, data: {} });
-        data = { id: todoId };
-      }
-    } catch (e) {
-      error = e instanceof Error ? e : new Error('An unknown error occurred');
-    }
-    return { data, error };
-  }
-
-  // Online: Perform operation and sync
+  const timestamp = new Date().toISOString();
+  
   try {
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const responseData = options.method !== 'DELETE' ? await response.json() : { id: todoId };
-    data = responseData;
-    const timestamp = new Date().toISOString();
-
-    // Update IndexedDB
+    const todoData: Partial<Todo> = options.body ? JSON.parse(options.body as string) : {};
+    
+    // Step 1: Always perform the operation on the local DB first, marking it as unsynced.
     if (operationType === 'add') {
-      await db.todos.put({ ...(data as Todo), createdAt: timestamp, updatedAt: timestamp, isSynced: 1, isDeleted: 0 });
+      data = { ...todoData, id: todoId, createdAt: timestamp, updatedAt: timestamp, isSynced: 0, isDeleted: 0 };
+      await db.todos.put(data as Todo);
     } else if (operationType === 'update') {
-      await db.todos.update(todoId, { ...(data as Todo), updatedAt: timestamp, isSynced: 1 });
+      await db.todos.update(todoId, { ...todoData, updatedAt: timestamp, isSynced: 0 });
+      data = await db.todos.get(todoId) || null;
     } else if (operationType === 'delete') {
-      await db.todos.update(todoId, { isDeleted: 1, updatedAt: timestamp, isSynced: 1 });
+      await db.todos.update(todoId, { isDeleted: 1, updatedAt: timestamp, isSynced: 0 });
+      data = { id: todoId };
     }
 
-    // Update cache
-    const cachedTodosStr = localStorage.getItem('todos_data') || '[]';
-    let cachedTodos: Todo[] = JSON.parse(cachedTodosStr);
-
-    if (operationType === 'add') {
-      cachedTodos.unshift(data as Todo);
-    } else if (operationType === 'update') {
-      const index = cachedTodos.findIndex(t => t.id === todoId);
-      if (index !== -1) cachedTodos[index] = data as Todo;
-    } else if (operationType === 'delete') {
-      cachedTodos = cachedTodos.filter(t => t.id !== todoId);
+    // Step 2: Always queue the operation for synchronization.
+    const opData = (operationType === 'add' && data) ? data : todoData;
+    await db.pendingOperations.add({ type: operationType, todoId, data: opData, timestamp });
+    
+    // Step 3: Attempt to sync immediately if the user is online.
+    if (navigator.onLine) {
+      // We don't need to wait for this, it can happen in the background.
+      syncPendingOperations();
     }
-    localStorage.setItem('todos_data', JSON.stringify(cachedTodos));
+    
+    // Return the optimistically updated data to the UI immediately.
+    return { data, error: null };
 
   } catch (e) {
-    error = e instanceof Error ? e : new Error('An unknown error occurred');
+    const error = e instanceof Error ? e : new Error('An unknown error occurred');
+    console.error(`Failed to perform local operation: ${operationType}`, e);
+    return { data: null, error };
   }
-  return { data, error };
 };
+
 
 export const syncPendingOperations = async (): Promise<void> => {
   if (!navigator.onLine) return;
 
   const operations = await db.pendingOperations.toArray();
-  const sortedOperations = operations.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  if (operations.length === 0) return;
 
-  for (const op of sortedOperations) {
+  console.log(`Syncing ${operations.length} pending operations...`);
+
+  for (const op of operations) {
     if (!op.opId) continue;
     try {
       const url = op.type === 'add' ? 'https://jsonplaceholder.typicode.com/todos' : `https://jsonplaceholder.typicode.com/todos/${op.todoId}`;
       const options: FetchOptions = {
         method: op.type === 'add' ? 'POST' : op.type === 'update' ? 'PUT' : 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: op.type !== 'delete' ? JSON.stringify(op.data) : undefined
+        body: op.type !== 'delete' ? JSON.stringify(op.data) : undefined,
       };
-
-      const { data, error } = await performOperation(url, options, op.type);
-
-      if (!error && data) {
-        const timestamp = new Date().toISOString();
-        if (op.type === 'add' || op.type === 'update') {
-          await db.todos.update(op.todoId, { ...(data as Todo), isSynced: 1, updatedAt: timestamp });
-        } else if (op.type === 'delete') {
-          await db.todos.update(op.todoId, { isDeleted: 1, isSynced: 1, updatedAt: timestamp });
+      
+      const response = await fetch(url, options);
+      if (response.ok) {
+        // On successful sync, update the local item's sync status and remove the pending operation.
+        const responseData = options.method !== 'DELETE' ? await response.json() : { id: op.todoId };
+        if (op.type === 'delete') {
+          await db.todos.update(op.todoId, { isDeleted: 1, isSynced: 1 });
+        } else {
+          // Important: Use the original todoId from the operation, not from the API response
+          await db.todos.update(op.todoId, { ...responseData, id: op.todoId, isSynced: 1 });
         }
         await db.pendingOperations.delete(op.opId);
+        console.log(`Successfully synced operation: ${op.type} for todo ${op.todoId}`);
+      } else {
+        // If the server rejects the request, log it but leave the item in the queue.
+        console.error(`Server failed to sync operation ${op.opId}. Status: ${response.status}`);
       }
     } catch (e) {
-      console.error(`Failed to sync operation ${op.opId}:`, e);
+      console.error(`Network error syncing operation ${op.opId}:`, e);
     }
   }
 };
+
 
 export const getNextTodoId = (): number => nextTodoId++;
 
 export const initializeNextTodoId = async (): Promise<void> => {
-  const todos = await db.todos.toArray();
-  if (todos.length > 0) {
-    const maxId = todos.reduce((max, todo) => Math.max(max, todo.id || 0), 0);
-    if (maxId >= nextTodoId) {
-      nextTodoId = maxId + 1;
+  try {
+    const todos = await db.todos.toArray();
+    if (todos.length > 0) {
+      const maxId = todos.reduce((max, todo) => Math.max(max, todo.id || 0), 0);
+      nextTodoId = Math.max(201, maxId + 1);
     }
+  } catch (e) {
+    console.error("Failed to initialize next todo ID from DB:", e);
   }
 };
+

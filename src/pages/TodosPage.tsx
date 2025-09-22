@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchData, performOperation, initializeNextTodoId, syncPendingOperations } from '../utils/api';
 import { Todo } from '../utils/db';
+import db from '../utils/db'; // Import the db instance
 import AddTodoModal from '../components/modals/AddTodoModal';
 import EditTodoModal from '../components/modals/EditTodoModal';
 import ConfirmDeleteModal from '../components/modals/ConfirmDeleteModal';
@@ -13,38 +14,56 @@ import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { PlusIcon, LoaderSpin } from '../components/Icons';
 
-type FilterStatus = 'all' | 'completed' | 'incomplete';
-
 const TodosPage = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'incomplete'>('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'Online' | 'Offline'>(navigator.onLine ? 'Online' : 'Offline');
+  const [connectionStatus, setConnectionStatus] = useState(navigator.onLine ? 'Online' : 'Offline');
 
   const ITEMS_PER_PAGE = 10;
   const API_URL = 'https://jsonplaceholder.typicode.com/todos';
   const CACHE_KEY = 'todos_data';
 
+  // Fetch todos from the server and update the local database.
   const fetchTodos = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await fetchData<Todo[]>(API_URL, { method: 'GET' }, CACHE_KEY);
-    if (data) {
-      setTodos(Array.isArray(data) ? data : [data]);
-      await initializeNextTodoId();
-    }
-    if (fetchError) {
+    
+    // Attempt to sync with the server. This function updates the local DB.
+    const { error: fetchError } = await fetchData<Todo[]>(API_URL, { method: 'GET' }, CACHE_KEY);
+    
+    // Show an error if fetching fails while online, but proceed to load local data.
+    if (fetchError && navigator.onLine) {
+      console.error("Failed to fetch from server, showing local data.", fetchError);
       setError(fetchError);
     }
+    
+    // Read from the local database as the single source of truth for the UI.
+    try {
+      const allLocalTodos = await db.todos.where('isDeleted').equals(0).toArray();
+      
+      // Sort to show newest items first, which is a better UX.
+      allLocalTodos.sort((a, b) => {
+        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      setTodos(allLocalTodos);
+      await initializeNextTodoId();
+    } catch (dbError) {
+      setError(dbError instanceof Error ? dbError : new Error('Failed to read from local database'));
+    }
+
     setLoading(false);
   }, []);
 
@@ -52,8 +71,7 @@ const TodosPage = () => {
     fetchTodos();
     const handleOnline = () => {
       setConnectionStatus('Online');
-      syncPendingOperations();
-      fetchTodos();
+      syncPendingOperations().then(() => fetchTodos());
     };
     const handleOffline = () => setConnectionStatus('Offline');
     window.addEventListener('online', handleOnline);
@@ -72,12 +90,8 @@ const TodosPage = () => {
         body: JSON.stringify(newTodoData),
       }, 'add');
       if (postError) throw postError;
-      if (data) {
+      if (data && data.id) {
         setTodos((prevTodos) => [data as Todo, ...prevTodos]);
-      }
-      if (navigator.onLine) {
-        await syncPendingOperations();
-        await fetchTodos();
       }
     } catch (e) {
       console.error('Error adding todo:', e);
@@ -85,43 +99,49 @@ const TodosPage = () => {
     }
   };
 
-  const handleUpdateTodo = async (id: number, updatedData: Partial<Todo>) => {
+  const handleUpdateTodo = async (todoToUpdate: Todo, updatedData: Partial<Todo>) => {
     try {
-      const { data, error: putError } = await performOperation(`${API_URL}/${id}`, {
+      setTodos((prevTodos) =>
+        prevTodos.map((todo) =>
+          todo === todoToUpdate ? { ...todo, ...updatedData } : todo
+        )
+      );
+      
+      await performOperation(`${API_URL}/${todoToUpdate.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData),
       }, 'update');
-      if (putError) throw putError;
-      setTodos((prevTodos) =>
-        prevTodos.map((todo) => (todo.id === id ? { ...todo, ...updatedData } : todo))
-      );
-      if (navigator.onLine) {
-        await syncPendingOperations();
-        await fetchTodos();
-      }
+      
+    
     } catch (e) {
       console.error('Error updating todo:', e);
-      throw e;
+      // Revert UI on local failure
+      setTodos((prevTodos) =>
+        prevTodos.map((todo) =>
+          todo === todoToUpdate ? todoToUpdate : todo
+        )
+      );
     }
   };
 
-  const handleDeleteTodo = async (id: number) => {
+
+  const handleDeleteTodo = async (todoToDelete: Todo) => {
     try {
-      const { error: deleteError } = await performOperation(`${API_URL}/${id}`, {
+      setTodos((prevTodos) => prevTodos.filter((todo) => todo !== todoToDelete));
+
+      await performOperation(`${API_URL}/${todoToDelete.id}`, {
         method: 'DELETE',
       }, 'delete');
-      if (deleteError) throw deleteError;
-      setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
-      if (navigator.onLine) {
-        await syncPendingOperations();
-        await fetchTodos();
-      }
+
     } catch (e) {
       console.error('Error deleting todo:', e);
-      throw e;
+      // Revert UI on local failure
+      setTodos((prevTodos) => [...prevTodos, todoToDelete]);
     }
   };
+  
+  const firstName = user?.displayName?.split(' ')[0] || 'User';
 
   const filteredTodos = todos.filter(todo => {
     const matchesSearch = todo.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -161,12 +181,13 @@ const TodosPage = () => {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>My Todo List</CardTitle>
-          <CardDescription>
-            {/* ## Update welcome message to show only the first name */}
-            {user?.displayName ? `Hi, ${user.displayName.split(' ')[0]}! ` : 'Welcome! '}
-            Manage your daily tasks efficiently. Status: {connectionStatus}
-          </CardDescription>
+          <CardTitle>Hi {firstName}!</CardTitle>
+          <CardDescription>Manage your daily tasks efficiently</CardDescription>
+          {/* Status indicator */}
+          <div className="flex items-center text-sm pt-1">
+            <span className={`h-2.5 w-2.5 rounded-full mr-2 ${connectionStatus === 'Online' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            <span className="text-gray-500">Status: {connectionStatus}</span>
+          </div>
         </CardHeader>
         <CardContent className="flex justify-end pt-4 pb-0">
           <Button onClick={() => setIsAddModalOpen(true)} className="mb-4">
@@ -174,7 +195,6 @@ const TodosPage = () => {
           </Button>
         </CardContent>
       </Card>
-
       <Card>
         <CardContent className="pt-6">
           <SearchFilter
@@ -183,7 +203,6 @@ const TodosPage = () => {
             filterStatus={filterStatus}
             onFilterChange={setFilterStatus}
           />
-
           {loading ? (
             <div className="flex justify-center items-center h-48">
               <LoaderSpin className="h-8 w-8 text-indigo-600" />
@@ -202,18 +221,17 @@ const TodosPage = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {currentTodos.map((todo) => (
+              {currentTodos.map((todo, index) => (
                 <TodoItem
-                  key={todo.id}
+                  key={`${todo.id}-${todo.title}-${index}`}
                   todo={todo}
                   onViewDetail={handleViewDetail}
                   onEdit={handleOpenEditModal}
-                  onDelete={handleOpenDeleteModal}
+                  onDelete={() => handleOpenDeleteModal(todo)}
                 />
               ))}
             </div>
           )}
-
           {filteredTodos.length > ITEMS_PER_PAGE && (
             <Pagination
               totalItems={filteredTodos.length}
@@ -224,7 +242,6 @@ const TodosPage = () => {
           )}
         </CardContent>
       </Card>
-
       <AddTodoModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -234,15 +251,15 @@ const TodosPage = () => {
         <>
           <EditTodoModal
             isOpen={isEditModalOpen}
-            onClose={() => setIsEditModalOpen(false)}
+            onClose={() => setIsEditModalOpen(false)} 
             todo={selectedTodo}
-            onUpdateTodo={handleUpdateTodo}
+            onUpdateTodo={(updatedData) => handleUpdateTodo(selectedTodo, updatedData)}
           />
           <ConfirmDeleteModal
             isOpen={isDeleteModalOpen}
-            onClose={() => setIsDeleteModalOpen(false)}
+            onClose={() => setIsDeleteModalOpen(false)} 
             todo={selectedTodo}
-            onDeleteTodo={handleDeleteTodo}
+            onDeleteTodo={() => handleDeleteTodo(selectedTodo)}
           />
         </>
       )}

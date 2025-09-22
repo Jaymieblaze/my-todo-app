@@ -24,31 +24,63 @@ const GoogleIcon = () => (
   </svg>
 );
 
+// Define a type for our validation errors state
+type FormErrors = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  password?: string;
+  form?: string; // For general server errors
+};
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [firstName, setFirstName] = useState(''); // <-- State for first name
-  const [lastName, setLastName] = useState('');   // <-- State for last name
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({}); // State to hold validation errors
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Create a validation function
+  const validateForm = () => {
+    const newErrors: FormErrors = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!emailRegex.test(email)) {
+      newErrors.email = 'Please enter a valid email address.';
+    }
+    if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long.';
+    } else if (!/\d/.test(password) || !/[!@#$%^&*]/.test(password)) {
+      newErrors.password = 'Password must contain a number and a special character.';
+    }
+    if (!isLogin) {
+      if (!firstName.trim()) newErrors.firstName = 'First name is required.';
+      if (!lastName.trim()) newErrors.lastName = 'Last name is required.';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0; // Return true if form is valid
+  };
+
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLogin && (!firstName.trim() || !lastName.trim())) {
-      setError('First and last name are required.');
+    setErrors({}); // Clear previous errors
+    
+    // Run validation before submitting
+    if (!validateForm()) {
       return;
     }
-    setLoading(true);
-    setError(null);
 
+    setLoading(true);
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // ## Combine first and last name for the displayName
         const displayName = `${firstName.trim()} ${lastName.trim()}`;
         await updateProfile(userCredential.user, {
           displayName: displayName,
@@ -57,7 +89,7 @@ const AuthPage = () => {
       navigate('/todos');
     } catch (err) {
       const authError = err as AuthError;
-      setError(authError.message);
+      setErrors({ form: 'Invalid credentials. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -65,24 +97,21 @@ const AuthPage = () => {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    setError(null);
+    setErrors({});
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       navigate('/todos');
     } catch (err) {
-      const authError = err as AuthError;
-      setError(authError.message);
+      setErrors({ form: 'Could not sign in with Google. Please try again.' });
     } finally {
       setLoading(false);
     }
   };
 
-
   return (
-    // ## This is the corrected layout for the AuthPage
-    <div className="flex items-center justify-center h-full w-full p-4">
-      <Card className="max-w-md w-full">
+    <div className="w-full p-4">
+      <Card className="max-w-md w-full mx-auto">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">{isLogin ? 'Welcome Back!' : 'Create an Account'}</CardTitle>
           <CardDescription>
@@ -90,51 +119,61 @@ const AuthPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleEmailSubmit} className="space-y-3">
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Input
-                  type="text"
-                  placeholder="First Name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-                <Input
-                  type="text"
-                  placeholder="Last Name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  disabled={loading}
-                />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <Input
+                    type="text"
+                    placeholder="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={errors.firstName ? 'border-red-500' : ''}
+                  />
+                  {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
+                </div>
+                <div className="flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={errors.lastName ? 'border-red-500' : ''}
+                  />
+                  {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+                </div>
               </div>
             )}
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            <div>
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={errors.email ? 'border-red-500' : ''}
+              />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={errors.password ? 'border-red-500' : ''}
+              />
+              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+            </div>
+
+            {errors.form && <p className="text-red-500 text-sm text-center">{errors.form}</p>}
+            
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <LoaderSpin className="mr-2" />}
               {isLogin ? 'Login' : 'Sign Up'}
             </Button>
           </form>
 
-          <div className="relative my-3">
+          <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -148,7 +187,7 @@ const AuthPage = () => {
             Google
           </Button>
 
-          <div className="mt-3 text-center text-sm">
+          <div className="mt-4 text-center text-sm">
             <button onClick={() => setIsLogin(!isLogin)} className="text-indigo-600 hover:underline" disabled={loading}>
               {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
             </button>
