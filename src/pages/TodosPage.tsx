@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { fetchData, performOperation, initializeNextTodoId, syncPendingOperations } from '../utils/api';
-import { Todo } from '../utils/db'; 
+import { Todo } from '../utils/db';
 import AddTodoModal from '../components/modals/AddTodoModal';
 import EditTodoModal from '../components/modals/EditTodoModal';
 import ConfirmDeleteModal from '../components/modals/ConfirmDeleteModal';
@@ -12,14 +13,11 @@ import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { PlusIcon, LoaderSpin } from '../components/Icons';
 
-// Define specific types for clarity
 type FilterStatus = 'all' | 'completed' | 'incomplete';
-type ConnectionStatus = 'Online' | 'Offline';
-type NewTodo = Omit<Todo, 'id' | 'userId' | 'completed'>;
 
 const TodosPage = () => {
   const navigate = useNavigate();
-  // State variables
+  const { user } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -30,9 +28,7 @@ const TodosPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
-    navigator.onLine ? 'Online' : 'Offline'
-  );
+  const [connectionStatus, setConnectionStatus] = useState<'Online' | 'Offline'>(navigator.onLine ? 'Online' : 'Offline');
 
   const ITEMS_PER_PAGE = 10;
   const API_URL = 'https://jsonplaceholder.typicode.com/todos';
@@ -41,7 +37,6 @@ const TodosPage = () => {
   const fetchTodos = useCallback(async () => {
     setLoading(true);
     setError(null);
-    // Generic fetchData function call
     const { data, error: fetchError } = await fetchData<Todo[]>(API_URL, { method: 'GET' }, CACHE_KEY);
     if (data) {
       setTodos(Array.isArray(data) ? data : [data]);
@@ -55,7 +50,6 @@ const TodosPage = () => {
 
   useEffect(() => {
     fetchTodos();
-    // Initialize connection status listeners
     const handleOnline = () => {
       setConnectionStatus('Online');
       syncPendingOperations();
@@ -70,21 +64,17 @@ const TodosPage = () => {
     };
   }, [fetchTodos]);
 
-  // Function parameters
-  const handleAddTodo = async (newTodoData: NewTodo) => {
+  const handleAddTodo = async (newTodoData: Omit<Todo, 'id'>) => {
     try {
-      const fullTodo: Omit<Todo, 'id'> = {
-          ...newTodoData,
-          userId: 1, // Default userId
-          completed: false,
-      }
       const { data, error: postError } = await performOperation(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fullTodo),
+        body: JSON.stringify(newTodoData),
       }, 'add');
       if (postError) throw postError;
-      if (data) setTodos((prevTodos) => [data as Todo, ...prevTodos]);
+      if (data) {
+        setTodos((prevTodos) => [data as Todo, ...prevTodos]);
+      }
       if (navigator.onLine) {
         await syncPendingOperations();
         await fetchTodos();
@@ -97,7 +87,7 @@ const TodosPage = () => {
 
   const handleUpdateTodo = async (id: number, updatedData: Partial<Todo>) => {
     try {
-      const { error: putError } = await performOperation(`${API_URL}/${id}`, {
+      const { data, error: putError } = await performOperation(`${API_URL}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData),
@@ -172,7 +162,11 @@ const TodosPage = () => {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>My Todo List</CardTitle>
-          <CardDescription>Manage your daily tasks efficiently. Status: {connectionStatus}</CardDescription>
+          <CardDescription>
+            {/* ## Update welcome message to show only the first name */}
+            {user?.displayName ? `Hi, ${user.displayName.split(' ')[0]}! ` : 'Welcome! '}
+            Manage your daily tasks efficiently. Status: {connectionStatus}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-end pt-4 pb-0">
           <Button onClick={() => setIsAddModalOpen(true)} className="mb-4">
@@ -187,7 +181,7 @@ const TodosPage = () => {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             filterStatus={filterStatus}
-            onFilterChange={(value: string) => setFilterStatus(value as FilterStatus)}
+            onFilterChange={setFilterStatus}
           />
 
           {loading ? (
@@ -240,13 +234,13 @@ const TodosPage = () => {
         <>
           <EditTodoModal
             isOpen={isEditModalOpen}
-            onClose={() => setIsEditModalOpen(false)} 
+            onClose={() => setIsEditModalOpen(false)}
             todo={selectedTodo}
             onUpdateTodo={handleUpdateTodo}
           />
           <ConfirmDeleteModal
             isOpen={isDeleteModalOpen}
-            onClose={() => setIsDeleteModalOpen(false)} 
+            onClose={() => setIsDeleteModalOpen(false)}
             todo={selectedTodo}
             onDeleteTodo={handleDeleteTodo}
           />
@@ -257,3 +251,4 @@ const TodosPage = () => {
 };
 
 export default TodosPage;
+

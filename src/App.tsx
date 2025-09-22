@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { auth } from './firebase';
 import { signOut } from 'firebase/auth';
-
-// Components and pages
-import TodosPage from './pages/TodosPage';
-import TodoDetailPage from './pages/TodoDetailPage';
-import AuthPage from './pages/AuthPage';
-import ErrorBoundary from './components/ErrorBoundary';
-import NotFoundPage from './pages/NotFoundPage';
-import ProtectedRoute from './components/ProtectedRoute';
+import AppRoutes from './AppRoutes';
 import Button from './components/Button';
 
 const AppContent = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user } = useAuth(); // Get user state from context
+  const { user } = useAuth();
+  const location = useLocation(); // Hook to get the current URL
 
   const handleLogout = async () => {
     try {
@@ -25,20 +19,19 @@ const AppContent = () => {
     }
   };
 
-  const appStyle: React.CSSProperties = {
-    fontFamily: '"Inter", sans-serif',
-    minHeight: '100vh',
-    backgroundColor: '#f8fafc',
-  };
+  // Determine if the current page is the AuthPage (login)
+  const isAuthPage = location.pathname === '/login';
+
+  // Adjust main content styling based on whether it's the AuthPage
+  const mainClassName = `flex-1 overflow-y-auto ${isAuthPage ? 'flex items-center justify-center' : ''}`;
 
   return (
-    <div className="antialiased" style={appStyle}>
-      {/* Header*/}
+    <div className="flex flex-col h-screen bg-gray-100 antialiased overflow-hidden">
       <header className="bg-indigo-600 text-white shadow-md">
         <nav className="container mx-auto px-4 py-4 flex justify-between items-center max-w-6xl">
           <h1 className="text-2xl font-bold">
             <Link to={user ? "/todos" : "/login"} className="text-white hover:text-indigo-100">
-              My React Todo App
+              My Todo App
             </Link>
           </h1>
           {user && (
@@ -50,7 +43,7 @@ const AppContent = () => {
                   </svg>
                 </button>
               </div>
-              <ul className={`sm:flex items-center sm:space-x-4 ${isMenuOpen ? 'block' : 'hidden'} sm:block absolute sm:static top-16 left-0 right-0 bg-indigo-600 sm:bg-transparent p-4 sm:p-0`}>
+              <ul className={`sm:flex items-center sm:space-x-4 ${isMenuOpen ? 'block' : 'hidden'} sm:block absolute sm:static top-16 left-0 right-0 bg-indigo-600 sm:bg-transparent p-4 sm-p-0`}>
                 <li className="text-sm hidden sm:block">
                   {user.email}
                 </li>
@@ -62,23 +55,14 @@ const AppContent = () => {
           )}
         </nav>
       </header>
-      <main className="py-8">
-        <ErrorBoundary showDetails={true}>
-          {/* New routing logic with protected routes */}
-          <Routes>
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/todos" element={<ProtectedRoute><TodosPage /></ProtectedRoute>} />
-            <Route path="/todos/:todoId" element={<ProtectedRoute><TodoDetailPage /></ProtectedRoute>} />
-            <Route path="/" element={<Navigate to="/todos" replace />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </ErrorBoundary>
+      
+      <main className={mainClassName}>
+        <AppRoutes />
       </main>
     </div>
   );
 };
 
-// The main AppWrapper that includes the AuthProvider
 const AppWrapper = () => (
   <BrowserRouter>
     <AuthProvider>

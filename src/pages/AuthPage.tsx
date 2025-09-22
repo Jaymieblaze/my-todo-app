@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup, // Import for Google Sign-In
-  GoogleAuthProvider, // Import for Google Sign-In
+  signInWithPopup,
+  GoogleAuthProvider,
+  updateProfile,
   AuthError,
 } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -23,9 +24,10 @@ const GoogleIcon = () => (
   </svg>
 );
 
-
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [firstName, setFirstName] = useState(''); // <-- State for first name
+  const [lastName, setLastName] = useState('');   // <-- State for last name
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,10 @@ const AuthPage = () => {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLogin && (!firstName.trim() || !lastName.trim())) {
+      setError('First and last name are required.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -41,7 +47,12 @@ const AuthPage = () => {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // ## Combine first and last name for the displayName
+        const displayName = `${firstName.trim()} ${lastName.trim()}`;
+        await updateProfile(userCredential.user, {
+          displayName: displayName,
+        });
       }
       navigate('/todos');
     } catch (err) {
@@ -52,7 +63,6 @@ const AuthPage = () => {
     }
   };
 
-  // ## New handler for Google Sign-In
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -70,7 +80,8 @@ const AuthPage = () => {
 
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    // ## This is the corrected layout for the AuthPage
+    <div className="flex items-center justify-center h-full w-full p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">{isLogin ? 'Welcome Back!' : 'Create an Account'}</CardTitle>
@@ -79,7 +90,27 @@ const AuthPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <form onSubmit={handleEmailSubmit} className="space-y-3">
+            {!isLogin && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  type="text"
+                  placeholder="First Name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+                <Input
+                  type="text"
+                  placeholder="Last Name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+            )}
             <Input
               type="email"
               placeholder="Email"
@@ -103,8 +134,7 @@ const AuthPage = () => {
             </Button>
           </form>
 
-          {/* ## Divider and Google Sign-In Button */}
-          <div className="relative my-4">
+          <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -118,7 +148,7 @@ const AuthPage = () => {
             Google
           </Button>
 
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-3 text-center text-sm">
             <button onClick={() => setIsLogin(!isLogin)} className="text-indigo-600 hover:underline" disabled={loading}>
               {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
             </button>
@@ -130,3 +160,4 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
+
