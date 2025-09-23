@@ -15,7 +15,7 @@ interface SearchFilterProps {
 
 // Apply the props interface to the component
 const SearchFilter = ({ searchTerm, onSearchChange, filterStatus, onFilterChange }: SearchFilterProps) => (
-  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+  <div className="flex flex-col sm:flex-row gap-4 sm:mb-0">
     <Input
       type="text"
       placeholder="Search todos by title..."

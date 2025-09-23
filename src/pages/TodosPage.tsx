@@ -14,9 +14,9 @@ import TodoItem from '../components/TodoItem';
 import Pagination from '../components/Pagination';
 import SearchFilter from '../components/SearchFilter';
 import Button from '../components/Button';
-import Select from '../components/Select';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/Dropdown';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
-import { PlusIcon, LoaderSpin, SparklesIcon } from '../components/Icons';
+import { PlusIcon, LoaderSpin, SparklesIcon, ArrowUpDownIcon } from '../components/Icons';
 
 const TodosPage = () => {
   const { user } = useAuth();
@@ -124,6 +124,12 @@ const TodosPage = () => {
     setSelectedTodo(todo);
     setIsDeleteModalOpen(true);
   };
+  
+  const sortOptions = {
+      createdAt: 'Date Created',
+      dueDate: 'Due Date',
+      priority: 'Priority'
+  };
 
   const sortedAndFilteredTodos = React.useMemo(() => {
       const priorityOrder = { high: 1, medium: 2, low: 3 };
@@ -186,21 +192,28 @@ const TodosPage = () => {
         </CardContent>
       </Card>
       <Card className="bg-white/50 backdrop-blur-sm border-gray-200/80 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <SearchFilter
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              filterStatus={filterStatus}
-              onFilterChange={setFilterStatus}
-            />
-             <div className="flex items-center gap-2">
-                <label htmlFor="sort-by" className="text-sm font-medium text-gray-600 flex-shrink-0">Sort by:</label>
-                <Select id="sort-by" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
-                    <option value="createdAt">Date Created</option>
-                    <option value="dueDate">Due Date</option>
-                    <option value="priority">Priority</option>
-                </Select>
+        <CardContent className="mt-2 pt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 md:gap-4 lg:gap-4 mb-6">
+            <div className="w-full flex-grow mb-0">
+              <SearchFilter
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                filterStatus={filterStatus}
+                onFilterChange={setFilterStatus}
+              />
+            </div>
+            <div className="w-full sm:w-auto flex-shrink-0">
+                <DropdownMenu>
+                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 h-10 px-4 py-2 w-full sm:w-auto">
+                       Sort by: {sortOptions[sortBy]}
+                       <ArrowUpDownIcon className="ml-2 h-4 w-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={() => setSortBy('createdAt')}>Date Created</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setSortBy('dueDate')}>Due Date</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setSortBy('priority')}>Priority</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
           </div>
           {loading ? (
