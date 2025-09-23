@@ -6,7 +6,7 @@ import { Card } from './Card';
 // Interface for the component's props
 interface TodoItemProps {
   todo: Todo;
-  onViewDetail: (id: number) => void;
+  onViewDetail: (id: string) => void;
   onEdit: (todo: Todo) => void;
   onDelete: (todo: Todo) => void;
 }

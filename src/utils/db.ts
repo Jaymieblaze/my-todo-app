@@ -2,7 +2,7 @@ import Dexie, { Table } from 'dexie';
 
 // ## 1. Define the types for your data
 export interface Todo {
-  id: number;
+  id: string;
   userId: number;
   title: string;
   completed: boolean;
