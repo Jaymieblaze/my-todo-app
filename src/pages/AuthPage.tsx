@@ -6,7 +6,8 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   updateProfile,
-  sendEmailVerification, // Import the email verification function
+  sendEmailVerification,
+  sendPasswordResetEmail,
   AuthError,
 } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -23,24 +24,50 @@ const GoogleIcon = () => (
   </svg>
 );
 
+// Icons for password visibility
+const EyeIcon = ({ className }: { className?: string }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = ({ className }: { className?: string }) => (
+  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" x2="22" y1="2" y2="22" />
+  </svg>
+);
+
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isResetMode, setIsResetMode] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false); 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false); // State to track if verification email was sent
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [resetSentMessage, setResetSentMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password: string) => password.length >= 8 && /\d/.test(password) && /[a-zA-Z]/.test(password);
 
+  const clearState = () => {
+      setError(null);
+      setResetSentMessage(null);
+      setVerificationSent(false);
+  }
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setVerificationSent(false); // Reset on new submission
+    clearState();
 
     if (!validateEmail(email)) {
       setError('Please enter a valid email address.');
@@ -62,10 +89,8 @@ const AuthPage = () => {
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: `${firstName.trim()} ${lastName.trim()}` });
-        
-        // ## Send the verification email after creating the user
         await sendEmailVerification(userCredential.user);
-        setVerificationSent(true); // Trigger the confirmation UI
+        setVerificationSent(true);
       }
     } catch (err) {
       setError((err as AuthError).message);
@@ -76,7 +101,7 @@ const AuthPage = () => {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    setError(null);
+    clearState();
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
       navigate('/todos');
@@ -87,15 +112,37 @@ const AuthPage = () => {
     }
   };
 
-  // ## If a verification email has been sent, show a confirmation message instead of the form.
+  const handlePasswordReset = async () => {
+    clearState();
+    if (!validateEmail(email)) {
+        setError('Please enter a valid email to reset your password.');
+        return;
+    }
+    setLoading(true);
+    try {
+        await sendPasswordResetEmail(auth, email);
+        setResetSentMessage('Password reset link sent! Please check your inbox.');
+    } catch (err) {
+        setError((err as AuthError).message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+
   if (verificationSent) {
     return (
       <div className="w-full h-full flex items-center justify-center p-4">
-        <div className="mx-auto grid w-[350px] gap-6 text-center">
-          <h1 className="text-3xl font-bold">Verify Your Email</h1>
-          <p className="text-balance text-muted-foreground">
-            We've sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.
-          </p>
+        <div className="mx-auto grid w-[350px] gap-6">
+          <div className="flex justify-center">
+            <h2 className="text-2xl font-bold tracking-tight text-indigo-600">MyTodoApp</h2>
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold">Verify Your Email</h1>
+            <p className="text-balance text-muted-foreground">
+              We've sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.
+            </p>
+          </div>
           <Button 
             variant="outline" 
             onClick={() => {
@@ -124,55 +171,115 @@ const AuthPage = () => {
       </div>
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center">
-            <h1 className="text-3xl font-bold">
-              {isLogin ? 'Welcome Back' : 'Create an Account'}
-            </h1>
-            <p className="text-balance text-muted-foreground">
-              {isLogin 
-                ? "Enter your email below to login to your account" 
-                : "Enter your information to create an account"}
-            </p>
+          
+          <div className="flex justify-center">
+            <h2 className="text-2xl font-bold tracking-tight text-indigo-600">MyTodoApp</h2>
           </div>
-          <form onSubmit={handleEmailSubmit} className="grid gap-4">
-            {!isLogin && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label htmlFor="first-name">First Name</label>
-                  <Input id="first-name" type="text" placeholder="John" value={firstName} onChange={e => setFirstName(e.target.value)} required disabled={loading} />
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="last-name">Last Name</label>
-                  <Input id="last-name" type="text" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} required disabled={loading} />
-                </div>
+          
+          {isResetMode ? (
+            <>
+              <div className="grid gap-2 text-center">
+                <h1 className="text-3xl font-bold">Reset Password</h1>
+                <p className="text-balance text-muted-foreground">
+                  Enter your email and we'll send you a link to get back into your account.
+                </p>
               </div>
-            )}
-            <div className="grid gap-2">
-              <label htmlFor="email">Email</label>
-              <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="password">Password</label>
-              <Input id="password" type="password" placeholder="********" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} />
-            </div>
-            
-            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <LoaderSpin className="mr-2" />}
-              {isLogin ? 'Login' : 'Create Account'}
-            </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-              <GoogleIcon />
-              {isLogin ? 'Login with Google' : 'Sign up with Google'}
-            </Button>
-          </form>
-          <div className="mt-4 text-center text-sm">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-            <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="font-medium text-indigo-600 hover:underline">
-              {isLogin ? 'Sign up' : 'Sign in'}
-            </button>
-          </div>
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <label htmlFor="email">Email</label>
+                  <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
+                </div>
+                {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                {resetSentMessage && <p className="text-sm text-green-600 text-center">{resetSentMessage}</p>}
+                <Button onClick={handlePasswordReset} className="w-full" disabled={loading}>
+                  {loading && <LoaderSpin className="mr-2" />}
+                  Send Reset Link
+                </Button>
+              </div>
+               <div className="mt-4 text-center text-sm">
+                <button onClick={() => setIsResetMode(false)} className="font-medium text-indigo-600 hover:underline">
+                    Back to Login
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-2 text-center">
+                <h1 className="text-3xl font-bold">
+                  {isLogin ? 'Welcome Back' : 'Create an Account'}
+                </h1>
+                <p className="text-balance text-muted-foreground">
+                  {isLogin 
+                    ? "Enter your email below to login to your account" 
+                    : "Enter your information to create an account"}
+                </p>
+              </div>
+              <form onSubmit={handleEmailSubmit} className="grid gap-4">
+                {!isLogin && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="first-name">First Name</label>
+                      <Input id="first-name" type="text" placeholder="John" value={firstName} onChange={e => setFirstName(e.target.value)} required disabled={loading} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="last-name">Last Name</label>
+                      <Input id="last-name" type="text" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} required disabled={loading} />
+                    </div>
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <label htmlFor="email">Email</label>
+                  <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
+                </div>
+                {/* Password input with the visibility toggle */}
+                <div className="grid gap-2">
+                    <div className="flex items-center">
+                        <label htmlFor="password">Password</label>
+                        {isLogin && (
+                            <button type="button" onClick={() => setIsResetMode(true)} className="ml-auto inline-block text-sm text-indigo-600 hover:underline">
+                                Forgot password?
+                            </button>
+                        )}
+                    </div>
+                  <div className="relative">
+                    <Input 
+                      id="password" 
+                      type={isPasswordVisible ? 'text' : 'password'} 
+                      placeholder="********" 
+                      value={password} 
+                      onChange={e => setPassword(e.target.value)} 
+                      required 
+                      disabled={loading} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {isPasswordVisible ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+                
+                {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <LoaderSpin className="mr-2" />}
+                  {isLogin ? 'Login' : 'Create Account'}
+                </Button>
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+                  <GoogleIcon />
+                  {isLogin ? 'Login with Google' : 'Sign up with Google'}
+                </Button>
+              </form>
+              <div className="mt-4 text-center text-sm">
+                {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+                <button onClick={() => { setIsLogin(!isLogin); clearState(); }} className="font-medium text-indigo-600 hover:underline">
+                  {isLogin ? 'Sign up' : 'Sign in'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
