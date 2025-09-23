@@ -5,7 +5,7 @@ import { fetchTodoByIdFromFirestore } from '../utils/api';
 import { Todo } from '../utils/db';
 import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
-import { LoaderSpin, CheckCircleIcon, XCircleIcon } from '../components/Icons';
+import { LoaderSpin, CheckCircleIcon, XCircleIcon, CalendarIcon, FlagIcon } from '../components/Icons'; // Import new icons
 
 const TodoDetailPage = () => {
   const { todoId } = useParams<{ todoId: string }>();
@@ -42,6 +42,22 @@ const TodoDetailPage = () => {
     };
     fetchTodoDetails();
   }, [todoId, user]);
+  
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+  
+  const priorityStyles = {
+    low: 'bg-blue-100 text-blue-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    high: 'bg-red-100 text-red-800',
+  };
+
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl">
@@ -61,15 +77,25 @@ const TodoDetailPage = () => {
             </div>
           ) : todo ? (
             <div className="space-y-4 text-base">
-              <div className="flex justify-between items-center pb-2 border-b">
-                <span className="text-gray-500 font-medium">Task ID</span>
-                <span className="text-gray-700 font-mono text-sm">{todo.id}</span>
+              <div className="pb-4 border-b">
+                <p className="text-sm text-gray-500 mb-1">Title</p>
+                <p className="text-lg text-gray-900 font-semibold">{todo.title}</p>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b">
-                <span className="text-gray-500 font-medium">Title</span>
-                <span className="text-gray-900 font-semibold text-right">{todo.title}</span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                    <p className="text-sm text-gray-500 flex items-center"><CalendarIcon className="h-4 w-4 mr-2"/> Due Date</p>
+                    <p className="font-medium">{formatDate(todo.dueDate)}</p>
+                </div>
+                 <div className="space-y-1">
+                    <p className="text-sm text-gray-500 flex items-center"><FlagIcon className="h-4 w-4 mr-2"/> Priority</p>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${priorityStyles[todo.priority || 'low']}`}>
+                        {todo.priority ? todo.priority.charAt(0).toUpperCase() + todo.priority.slice(1) : 'Low'}
+                    </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center pb-2">
+
+              <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-gray-500 font-medium">Status</span>
                 <div className={`flex items-center gap-2 font-semibold ${todo.completed ? 'text-green-600' : 'text-gray-500'}`}>
                   {todo.completed ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
@@ -83,10 +109,11 @@ const TodoDetailPage = () => {
             </div>
           )}
         </CardContent>
-        <div className="p-6 pt-0">
+        <div className="p-6 pt-4 flex justify-between items-center">
           <Button variant="outline" onClick={() => navigate('/todos')}>
             Back to List
           </Button>
+           {todo && <p className="text-xs text-gray-400">Task ID: {todo.id}</p>}
         </div>
       </Card>
     </div>

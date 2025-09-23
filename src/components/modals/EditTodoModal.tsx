@@ -3,6 +3,7 @@ import { Todo } from '../../utils/db';
 import Dialog from '../Dialog';
 import Button from '../Button';
 import Input from '../Input';
+import Select from '../Select';
 import Checkbox from '../Checkbox';
 import { EditIcon, LoaderSpin } from '../Icons';
 
@@ -16,13 +17,18 @@ interface EditTodoModalProps {
 const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }: EditTodoModalProps) => {
   const [title, setTitle] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('low');
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // This effect populates the form when a todo is selected
   useEffect(() => {
     if (todo) {
       setTitle(todo.title);
       setCompleted(todo.completed);
+      setDueDate(todo.dueDate || ''); // Handle cases where dueDate might be undefined
+      setPriority(todo.priority || 'low'); // Handle cases where priority might be undefined
     }
   }, [todo]);
 
@@ -34,7 +40,8 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }: EditTodoModalPro
     setUpdating(true);
     setError(null);
     try {
-      await onUpdateTodo({ title, completed });
+      // Pass all updated fields to the handler function
+      await onUpdateTodo({ title, completed, dueDate, priority });
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -57,6 +64,23 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }: EditTodoModalPro
             aria-label="Todo title"
           />
         </div>
+        
+        {/* Due Date and Priority */}
+        <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <label htmlFor="edit-due-date" className="text-sm font-medium">Due Date</label>
+                <Input id="edit-due-date" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+                <label htmlFor="edit-priority" className="text-sm font-medium">Priority</label>
+                <Select id="edit-priority" value={priority} onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high')}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </Select>
+            </div>
+        </div>
+
         <Checkbox
           id="edit-completed"
           label="Mark as completed"

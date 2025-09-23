@@ -6,7 +6,6 @@ import { firestore } from '../firebase';
 import { Todo } from '../utils/db';
 import { addMultipleTodosToFirestore, performFirestoreOperation } from '../utils/api';
 import Alert from '../components/Alert';
-// Other component imports...
 import AddTodoModal from '../components/modals/AddTodoModal';
 import EditTodoModal from '../components/modals/EditTodoModal';
 import ConfirmDeleteModal from '../components/modals/ConfirmDeleteModal';
@@ -15,6 +14,7 @@ import TodoItem from '../components/TodoItem';
 import Pagination from '../components/Pagination';
 import SearchFilter from '../components/SearchFilter';
 import Button from '../components/Button';
+import Select from '../components/Select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
 import { PlusIcon, LoaderSpin, SparklesIcon } from '../components/Icons';
 
@@ -24,10 +24,11 @@ const TodosPage = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [operationError, setOperationError] = useState<string | null>(null); // State for operation errors
+  const [operationError, setOperationError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'incomplete'>('all');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'dueDate' | 'priority'>('createdAt');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -54,10 +55,10 @@ const TodosPage = () => {
           updatedAt: data.updatedAt,
           isSynced: data.isSynced ?? 1,
           isDeleted: data.isDeleted ?? 0,
+          dueDate: data.dueDate,
+          priority: data.priority || 'low',
         };
       });
-
-      todosData.sort((a, b) => (new Date(b.createdAt || 0).getTime()) - (new Date(a.createdAt || 0).getTime()));
       setTodos(todosData);
       setLoading(false);
     }, (err) => {
@@ -79,7 +80,7 @@ const TodosPage = () => {
     }
   };
 
-  const handleAddTodo = (newTodoData: Omit<Todo, 'id'>) => {
+  const handleAddTodo = (newTodoData: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!user) return;
     handleOperation(
       () => performFirestoreOperation(user.uid, 'add', newTodoData),
@@ -113,8 +114,7 @@ const TodosPage = () => {
   };
   
   const firstName = user?.displayName?.split(' ')[0] || 'User';
-
-  // Handler to open the edit modal
+  
   const handleOpenEditModal = (todo: Todo) => {
     setSelectedTodo(todo);
     setIsEditModalOpen(true);
@@ -125,14 +125,31 @@ const TodosPage = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const filteredTodos = todos.filter(todo =>
-    todo.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (filterStatus === 'all' || (filterStatus === 'completed' && todo.completed) || (filterStatus === 'incomplete' && !todo.completed))
-  );
+  const sortedAndFilteredTodos = React.useMemo(() => {
+      const priorityOrder = { high: 1, medium: 2, low: 3 };
+      
+      return todos
+        .filter(todo =>
+          todo.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          (filterStatus === 'all' || (filterStatus === 'completed' && todo.completed) || (filterStatus === 'incomplete' && !todo.completed))
+        )
+        .sort((a, b) => {
+            switch (sortBy) {
+                case 'dueDate':
+                    return (a.dueDate || 'z') > (b.dueDate || 'z') ? 1 : -1;
+                case 'priority':
+                    return (priorityOrder[a.priority || 'low']) - (priorityOrder[b.priority || 'low']);
+                case 'createdAt':
+                default:
+                    return (new Date(b.createdAt || 0).getTime()) - (new Date(a.createdAt || 0).getTime());
+            }
+        });
+  }, [todos, searchTerm, filterStatus, sortBy]);
+
 
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentTodos = filteredTodos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  const totalPages = Math.ceil(filteredTodos.length / ITEMS_PER_PAGE);
+  const currentTodos = sortedAndFilteredTodos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(sortedAndFilteredTodos.length / ITEMS_PER_PAGE);
 
   const handleViewDetail = (id: string | undefined) => {
     if (id) navigate(`/todos/${id}`);
@@ -170,24 +187,33 @@ const TodosPage = () => {
       </Card>
       <Card className="bg-white/50 backdrop-blur-sm border-gray-200/80 shadow-sm">
         <CardContent className="pt-6">
-          <SearchFilter
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            filterStatus={filterStatus}
-            onFilterChange={setFilterStatus}
-          />
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <SearchFilter
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              filterStatus={filterStatus}
+              onFilterChange={setFilterStatus}
+            />
+             <div className="flex items-center gap-2">
+                <label htmlFor="sort-by" className="text-sm font-medium text-gray-600 flex-shrink-0">Sort by:</label>
+                <Select id="sort-by" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
+                    <option value="createdAt">Date Created</option>
+                    <option value="dueDate">Due Date</option>
+                    <option value="priority">Priority</option>
+                </Select>
+            </div>
+          </div>
           {loading ? (
             <div className="flex justify-center items-center h-48">
               <LoaderSpin className="h-8 w-8 text-indigo-600" />
-              <span className="ml-2 text-lg text-gray-700">Loading your tasks...</span>
             </div>
           ) : error ? (
             <div className="text-center text-red-600 p-6">
               <p>{error.message}</p>
             </div>
-          ) : filteredTodos.length === 0 ? (
+          ) : sortedAndFilteredTodos.length === 0 ? (
             <div className="text-center text-gray-600 p-6">
-              <p className="text-lg font-semibold">No tasks found. Create a New Task.</p>
+              <p className="text-lg font-semibold">No tasks found. Create a New Task</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200/80">
@@ -202,9 +228,9 @@ const TodosPage = () => {
               ))}
             </div>
           )}
-          {filteredTodos.length > ITEMS_PER_PAGE && (
+          {sortedAndFilteredTodos.length > ITEMS_PER_PAGE && (
             <Pagination
-              totalItems={filteredTodos.length}
+              totalItems={sortedAndFilteredTodos.length}
               itemsPerPage={ITEMS_PER_PAGE}
               currentPage={currentPage}
               onPageChange={setCurrentPage}
@@ -212,7 +238,6 @@ const TodosPage = () => {
           )}
         </CardContent>
       </Card>
-
       <AddTodoModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddTodo={handleAddTodo} />
       <AIAssistantModal isOpen={isAIAssistantOpen} onClose={() => setIsAIAssistantOpen(false)} onAddTasks={handleAddMultipleTodos} />
       {selectedTodo && (

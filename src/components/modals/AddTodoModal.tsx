@@ -1,20 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Todo } from '../../utils/db';
 import Dialog from '../Dialog';
 import Button from '../Button';
 import Input from '../Input';
+import Select from '../Select';
 import { PlusIcon, LoaderSpin } from '../Icons';
 
 interface AddTodoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddTodo: (newTodoData: Omit<Todo, 'id'>) => void;
+  onAddTodo: (newTodoData: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => void;
 }
 
 const AddTodoModal = ({ isOpen, onClose, onAddTodo }: AddTodoModalProps) => {
-  const [title, setTitle] = React.useState('');
-  const [adding, setAdding] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('low');
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -24,8 +27,12 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }: AddTodoModalProps) => {
     setAdding(true);
     setError(null);
     try {
-      await onAddTodo({ title, completed: false, userId: 1 });
+      // Pass DueDate and priority fields
+      await onAddTodo({ title, completed: false, userId: 1, dueDate, priority });
+      // Reset the form after submission
       setTitle('');
+      setDueDate('');
+      setPriority('low');
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -47,6 +54,23 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }: AddTodoModalProps) => {
             aria-label="Todo title"
             />
         </div>
+
+        {/* Due Date and Priority */}
+        <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <label htmlFor="due-date" className="text-sm font-medium">Due Date</label>
+                <Input id="due-date" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+                <label htmlFor="priority" className="text-sm font-medium">Priority</label>
+                <Select id="priority" value={priority} onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high')}>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </Select>
+            </div>
+        </div>
+        
         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
       </div>
       <div className="flex justify-end gap-2">

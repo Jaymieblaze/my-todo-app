@@ -14,6 +14,8 @@ const todoConverter: FirestoreDataConverter<Todo> = {
       updatedAt: data.updatedAt,
       isSynced: data.isSynced ?? 1,
       isDeleted: data.isDeleted ?? 0,
+      dueDate: data.dueDate, 
+      priority: data.priority || 'low', 
     };
   },
   
@@ -53,6 +55,7 @@ export const performFirestoreOperation = async (
   switch (operationType) {
     case 'add':
       const newDocRef = doc(todosCollectionRef); 
+
       const newTodo: Todo = {
         userId: todo.userId || 1,
         title: todo.title || 'New Todo',
@@ -60,6 +63,8 @@ export const performFirestoreOperation = async (
         id: newDocRef.id, 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        dueDate: todo.dueDate,
+        priority: todo.priority || 'low',
       };
       await setDoc(newDocRef, newTodo);
       return newTodo;
@@ -89,11 +94,13 @@ export const addMultipleTodosToFirestore = async (userId: string, tasks: Omit<To
 
     tasks.forEach(task => {
         const newDocRef = doc(todosCollectionRef);
+        // Ensure AI-generated tasks have default priority.
         const newTodo: Todo = {
             ...task,
             id: newDocRef.id,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            priority: 'low',
         };
         batch.set(newDocRef, newTodo);
         newTodos.push(newTodo);
