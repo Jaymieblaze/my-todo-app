@@ -169,16 +169,16 @@ const TodosPage = () => {
         </Alert>
       )}
 
-      <Card className="mb-6 bg-white/50 backdrop-blur-sm border-gray-200/80 shadow-sm">
+      <Card className="mb-6 bg-white/50 backdrop-blur-sm border-gray-200/80 shadow-sm dark:bg-slate-900/50 dark:border-slate-800">
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-2xl text-gray-800">Hi {firstName},</CardTitle>
-              <CardDescription className="mt-1">Here are your real-time tasks.</CardDescription>
+              <CardTitle className="text-2xl text-gray-800 dark:text-slate-100">Hi {firstName},</CardTitle>
+              <CardDescription className="mt-1 dark:text-slate-400">Here are your real-time tasks.</CardDescription>
             </div>
              <div className="flex items-center text-xs pt-1">
               <span className="h-2 w-2 rounded-full mr-2 bg-green-500"></span>
-              <span className="text-gray-500">Live Sync</span>
+              <span className="text-gray-500 dark:text-slate-400">Live Sync</span>
             </div>
           </div>
         </CardHeader>
@@ -191,7 +191,7 @@ const TodosPage = () => {
           </Button>
         </CardContent>
       </Card>
-      <Card className="bg-white/50 backdrop-blur-sm border-gray-200/80 shadow-sm">
+      <Card className="bg-white/50 backdrop-blur-sm border-gray-200/80 shadow-sm dark:bg-slate-900/50 dark:border-slate-800">
         <CardContent className="mt-2 pt-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 md:gap-4 lg:gap-4 mb-6">
             <div className="w-full flex-grow mb-0">
@@ -204,7 +204,7 @@ const TodosPage = () => {
             </div>
             <div className="w-full sm:w-auto flex-shrink-0">
                 <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 h-10 px-4 py-2 w-full sm:w-auto">
+                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 h-10 px-4 py-2 w-full sm:w-auto dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                        Sort by: {sortOptions[sortBy]}
                        <ArrowUpDownIcon className="ml-2 h-4 w-4" />
                     </DropdownMenuTrigger>
@@ -225,11 +225,11 @@ const TodosPage = () => {
               <p>{error.message}</p>
             </div>
           ) : sortedAndFilteredTodos.length === 0 ? (
-            <div className="text-center text-gray-600 p-6">
+            <div className="text-center text-gray-600 dark:text-gray-400 p-6">
               <p className="text-lg font-semibold">No tasks found. Create a New Task</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200/80">
+            <div className="divide-y divide-gray-200/80 dark:divide-slate-800">
               {currentTodos.map((todo) => (
                 <TodoItem
                   key={todo.id}
