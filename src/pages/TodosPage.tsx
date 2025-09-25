@@ -177,7 +177,7 @@ const TodosPage = () => {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-2xl text-gray-800 dark:text-slate-100">Hi {firstName},</CardTitle>
-              <CardDescription className="mt-1 dark:text-slate-400">Here are your real-time tasks.</CardDescription>
+              <CardDescription className="mt-1 dark:text-slate-400">Manage your daily tasks efficiently.</CardDescription>
             </div>
              <div className="flex items-center text-xs pt-1">
               <span className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
