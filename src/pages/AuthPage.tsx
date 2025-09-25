@@ -26,14 +26,14 @@ const GoogleIcon = () => (
 
 // Icons for password visibility
 const EyeIcon = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg className={cn('h-5 w-5 text-gray-500 dark:text-gray-400', className)} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
 const EyeOffIcon = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg className={cn('h-5 w-5 text-gray-500 dark:text-gray-400', className)} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
     <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
     <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
@@ -41,6 +41,7 @@ const EyeOffIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(' ');
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -160,8 +161,8 @@ const AuthPage = () => {
             <h2 className="text-2xl font-bold tracking-tight text-indigo-600">MyTodoApp</h2>
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold">Verify Your Email</h1>
-            <p className="text-balance text-muted-foreground">
+            <h1 className="text-3xl font-bold dark:text-white">Verify Your Email</h1>
+            <p className="text-balance text-gray-500 dark:text-gray-400">
               We've sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.
             </p>
           </div>
@@ -181,7 +182,7 @@ const AuthPage = () => {
 
   return (
     <div className="w-full h-full lg:grid lg:grid-cols-2">
-      <div className="hidden bg-muted lg:block">
+      <div className="hidden bg-gray-100 dark:bg-slate-900 lg:block">
         <div 
           className="h-full w-full object-cover" 
           style={{
@@ -201,14 +202,14 @@ const AuthPage = () => {
           {isResetMode ? (
             <>
               <div className="grid gap-2 text-center">
-                <h1 className="text-3xl font-bold">Reset Password</h1>
-                <p className="text-balance text-muted-foreground">
+                <h1 className="text-3xl font-bold dark:text-white">Reset Password</h1>
+                <p className="text-balance text-gray-500 dark:text-gray-400">
                   Enter your email and we'll send you a link to get back into your account.
                 </p>
               </div>
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <label htmlFor="email">Email</label>
+                  <label htmlFor="email" className="dark:text-gray-200">Email</label>
                   <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
                 </div>
                 {error && <p className="text-sm text-red-600 text-center">{error}</p>}
@@ -219,7 +220,7 @@ const AuthPage = () => {
                 </Button>
               </div>
                <div className="mt-4 text-center text-sm">
-                <button onClick={() => setIsResetMode(false)} className="font-medium text-indigo-600 hover:underline">
+                <button onClick={() => setIsResetMode(false)} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
                     Back to Login
                 </button>
               </div>
@@ -227,10 +228,10 @@ const AuthPage = () => {
           ) : (
             <>
               <div className="grid gap-2 text-center">
-                <h1 className="text-3xl font-bold">
+                <h1 className="text-3xl font-bold dark:text-white">
                   {isLogin ? 'Welcome Back!' : 'Create an Account'}
                 </h1>
-                <p className="text-balance text-muted-foreground">
+                <p className="text-balance text-gray-500 dark:text-gray-400">
                   {isLogin 
                     ? "Enter your email below to login to your account" 
                     : "Enter your information to create an account"}
@@ -240,25 +241,25 @@ const AuthPage = () => {
                 {!isLogin && (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <label htmlFor="first-name">First Name</label>
+                      <label htmlFor="first-name" className="dark:text-gray-200">First Name</label>
                       <Input id="first-name" type="text" placeholder="John" value={firstName} onChange={e => setFirstName(e.target.value)} required disabled={loading} />
                     </div>
                     <div className="grid gap-2">
-                      <label htmlFor="last-name">Last Name</label>
+                      <label htmlFor="last-name" className="dark:text-gray-200">Last Name</label>
                       <Input id="last-name" type="text" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} required disabled={loading} />
                     </div>
                   </div>
                 )}
                 <div className="grid gap-2">
-                  <label htmlFor="email">Email</label>
+                  <label htmlFor="email" className="dark:text-gray-200">Email</label>
                   <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
                 </div>
                 {/* Password input with the visibility toggle */}
                 <div className="grid gap-2">
                     <div className="flex items-center">
-                        <label htmlFor="password">Password</label>
+                        <label htmlFor="password" className="dark:text-gray-200">Password</label>
                         {isLogin && (
-                            <button type="button" onClick={() => setIsResetMode(true)} className="ml-auto inline-block text-sm text-indigo-600 hover:underline">
+                            <button type="button" onClick={() => setIsResetMode(true)} className="ml-auto inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400">
                                 Forgot password?
                             </button>
                         )}
@@ -296,7 +297,7 @@ const AuthPage = () => {
               </form>
               <div className="mt-4 text-center text-sm">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-                <button onClick={toggleAuthMode} className="font-medium text-indigo-600 hover:underline">
+                <button onClick={toggleAuthMode} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
                   {isLogin ? 'Sign up' : 'Sign in'}
                 </button>
               </div>
