@@ -1,8 +1,7 @@
 import Dexie, { Table } from 'dexie';
 
-// ## 1. Define the types for your data
 export interface Todo {
-  id: number;
+  id: string;
   userId: number;
   title: string;
   completed: boolean;
@@ -10,6 +9,8 @@ export interface Todo {
   updatedAt?: string;
   isSynced?: 0 | 1;
   isDeleted?: 0 | 1;
+  dueDate?: string; // e.g., "2025-12-31"
+  priority?: 'low' | 'medium' | 'high';
 }
 
 export interface PendingOperation {
@@ -20,24 +21,20 @@ export interface PendingOperation {
   timestamp: string;
 }
 
-// ## 2. Create a class that extends Dexie
+// Dexie offline DB setup
 class MyTodoAppDB extends Dexie {
-  // ## 3. Declare your tables as properties
-  // The '!' is a non-null assertion, telling TypeScript that these will be initialized by Dexie
   todos!: Table<Todo>;
   pendingOperations!: Table<PendingOperation>;
 
   constructor() {
     super('TodoAppDB');
     this.version(1).stores({
-      // Define schema with indexes
-      todos: 'id, userId, title, completed, createdAt, updatedAt, isSynced, isDeleted',
+      todos: 'id, userId, title, completed, createdAt, updatedAt, isSynced, isDeleted, dueDate, priority',
       pendingOperations: '++opId, type, todoId, timestamp'
     });
   }
 }
 
-// ## 4. Export a single instance of your typed database
 const db = new MyTodoAppDB();
 
 export default db;

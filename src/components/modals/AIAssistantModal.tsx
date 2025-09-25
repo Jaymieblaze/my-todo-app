@@ -5,28 +5,36 @@ import Button from '../Button';
 import Input from '../Input';
 import { LoaderSpin } from '../Icons';
 
-// Placeholder for a real API call to an AI model.
+// Function to call the AI service and get generated tasks
 const generateTasksFromAI = async (prompt: string): Promise<string[]> => {
-  console.log("Sending prompt to AI:", prompt);
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Return a mock response
-  if (prompt.toLowerCase().includes('vacation')) {
-    return [
-      "Book flights and accommodation",
-      "Plan itinerary for each day",
-      "Pack clothes and essentials",
-      "Arrange for pet sitter",
-      "Notify bank of travel dates"
-    ];
+  const endpoint = '/api/generate-tasks';
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (Array.isArray(data.tasks)) {
+      return data.tasks;
+    } else {
+      throw new Error("Invalid response format from the AI service.");
+    }
+
+  } catch (error) {
+    console.error("Error calling AI service:", error);
+    throw error;
   }
-  return [
-    `Break down '${prompt}' into smaller tasks`,
-    "Research best practices for the main task",
-    "Allocate time for each sub-task",
-    "Review progress at the end of the day"
-  ];
 };
 
 
@@ -54,7 +62,8 @@ const AIAssistantModal = ({ isOpen, onClose, onAddTasks }: AIAssistantModalProps
       const tasks = await generateTasksFromAI(prompt);
       setGeneratedTasks(tasks);
     } catch (e) {
-      setError("Failed to connect to the AI assistant. Please try again.");
+      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+      setError(`Failed to connect to the AI assistant. ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -64,7 +73,7 @@ const AIAssistantModal = ({ isOpen, onClose, onAddTasks }: AIAssistantModalProps
     const newTodos: Omit<Todo, 'id'>[] = generatedTasks.map(title => ({
       title,
       completed: false,
-      userId: 1, 
+      userId: 1,
     }));
     onAddTasks(newTodos);
     handleClose();
@@ -110,3 +119,4 @@ const AIAssistantModal = ({ isOpen, onClose, onAddTasks }: AIAssistantModalProps
 };
 
 export default AIAssistantModal;
+

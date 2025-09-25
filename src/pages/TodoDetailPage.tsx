@@ -1,92 +1,119 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchData } from '../utils/api';
-import { Todo } from '../utils/db'; // Import the Todo type
+import { useAuth } from '../context/AuthContext';
+import { fetchTodoByIdFromFirestore } from '../utils/api';
+import { Todo } from '../utils/db';
 import Button from '../components/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
-import { LoaderSpin } from '../components/Icons';
+import { LoaderSpin, CheckCircleIcon, XCircleIcon, CalendarIcon, FlagIcon } from '../components/Icons'; // Import new icons
 
 const TodoDetailPage = () => {
-  const { todoId } = useParams<{ todoId: string }>(); // Explicitly type the route parameter
+  const { todoId } = useParams<{ todoId: string }>();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  // ## 1. Type the component's state
   const [todo, setTodo] = useState<Todo | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Constants for API and caching
-  const API_URL = `https://jsonplaceholder.typicode.com/todos/${todoId}`;
-  const CACHE_KEY = `todo_detail_${todoId}`;
-
   useEffect(() => {
     const fetchTodoDetails = async () => {
-      // Ensure todoId is present before fetching
-      if (!todoId) {
-        setError(new Error("No Todo ID provided."));
+      if (!user || !todoId) {
         setLoading(false);
+        setError(new Error("User or Todo ID is missing."));
         return;
       }
 
       setLoading(true);
       setError(null);
       
-      // ## 2. Type the generic fetchData function call
-      const { data, error: fetchError } = await fetchData<Todo>(API_URL, { method: 'GET' }, CACHE_KEY);
-      
-      if (data) {
-        setTodo(data);
+      try {
+        const data = await fetchTodoByIdFromFirestore(user.uid, todoId);
+        if (data) {
+          setTodo(data);
+        } else {
+          setError(new Error("Todo not found."));
+        }
+      } catch (fetchError) {
+        setError(fetchError as Error);
+      } finally {
+        setLoading(false);
       }
-      if (fetchError) {
-        setError(fetchError);
-      }
-      setLoading(false);
     };
     fetchTodoDetails();
-  }, [todoId, API_URL, CACHE_KEY]); // Add dependencies to useEffect array
+  }, [todoId, user]);
+  
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+  
+  const priorityStyles = {
+    low: 'bg-blue-100 text-blue-800',
+    medium: 'bg-yellow-100 text-yellow-800',
+    high: 'bg-red-100 text-red-800',
+  };
+
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl min-h-[calc(100vh-4rem)]">
-      <Card>
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl">
+      <Card className="shadow-lg border-gray-200/80">
         <CardHeader>
-          <CardTitle>Todo Details</CardTitle>
-          <CardDescription>Detailed information about the selected todo item.</CardDescription>
+          <CardTitle className="text-2xl">Task Details</CardTitle>
+          <CardDescription>Detailed information about your selected task.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center items-center h-48">
               <LoaderSpin className="h-8 w-8 text-indigo-600" />
-              <span className="ml-2 text-lg text-gray-700">Loading todo details...</span>
             </div>
           ) : error ? (
-            <div className="text-center text-red-600 p-6 rounded-md bg-red-50 border border-red-200">
-              <p className="font-semibold mb-2">Error loading todo details:</p>
+            <div className="text-center text-red-600 p-6">
               <p>{error.message}</p>
-              <Button onClick={() => window.location.reload()} className="mt-4">Refresh Page</Button>
             </div>
           ) : todo ? (
-            <div className="grid gap-4 text-base">
-              <p><strong className="font-semibold">ID:</strong> {todo.id}</p>
-              <p><strong className="font-semibold">User ID:</strong> {todo.userId}</p>
-              <p><strong className="font-semibold">Title:</strong> {todo.title}</p>
-              <p>
-                <strong className="font-semibold">Status:</strong>{' '}
-                <span className={`font-semibold ${todo.completed ? 'text-green-600' : 'text-red-600'}`}>
-                  {todo.completed ? 'Completed' : 'Incomplete'}
-                </span>
-              </p>
+            <div className="space-y-4 text-base">
+              <div className="pb-4 border-b">
+                <p className="text-sm text-gray-500 mb-1">Title</p>
+                <p className="text-lg text-gray-900 font-semibold">{todo.title}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                    <p className="text-sm text-gray-500 flex items-center"><CalendarIcon className="h-4 w-4 mr-2"/> Due Date</p>
+                    <p className="font-medium">{formatDate(todo.dueDate)}</p>
+                </div>
+                 <div className="space-y-1">
+                    <p className="text-sm text-gray-500 flex items-center"><FlagIcon className="h-4 w-4 mr-2"/> Priority</p>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${priorityStyles[todo.priority || 'low']}`}>
+                        {todo.priority ? todo.priority.charAt(0).toUpperCase() + todo.priority.slice(1) : 'Low'}
+                    </span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <span className="text-gray-500 font-medium">Status</span>
+                <div className={`flex items-center gap-2 font-semibold ${todo.completed ? 'text-green-600' : 'text-gray-500'}`}>
+                  {todo.completed ? <CheckCircleIcon className="h-5 w-5" /> : <XCircleIcon className="h-5 w-5" />}
+                  <span>{todo.completed ? 'Completed' : 'Incomplete'}</span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="text-center text-gray-600 p-6">
-              <p className="text-lg font-semibold">Todo not found.</p>
-              <p className="text-sm">The requested todo item could not be loaded.</p>
+              <p>No details to display.</p>
             </div>
           )}
         </CardContent>
-        <div className="p-6 pt-0 flex justify-start">
+        <div className="p-6 pt-4 flex justify-between items-center">
           <Button variant="outline" onClick={() => navigate('/todos')}>
             Back to List
           </Button>
+           {todo && <p className="text-xs text-gray-400">Task ID: {todo.id}</p>}
         </div>
       </Card>
     </div>
@@ -94,3 +121,4 @@ const TodoDetailPage = () => {
 };
 
 export default TodoDetailPage;
+
