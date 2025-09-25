@@ -5,7 +5,7 @@ import Button from '../Button';
 import Input from '../Input';
 import { LoaderSpin } from '../Icons';
 
-// Function to call the AI service and get generated tasks
+// Calls your real Vercel backend endpoint
 const generateTasksFromAI = async (prompt: string): Promise<string[]> => {
   const endpoint = '/api/generate-tasks';
 
@@ -30,18 +30,16 @@ const generateTasksFromAI = async (prompt: string): Promise<string[]> => {
     } else {
       throw new Error("Invalid response format from the AI service.");
     }
-
   } catch (error) {
     console.error("Error calling AI service:", error);
-    throw error;
+    throw new Error("Failed to generate tasks from AI.");
   }
 };
-
 
 interface AIAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddTasks: (tasks: Omit<Todo, 'id'>[]) => void;
+  onAddTasks: (tasks: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>[]) => void;
 }
 
 const AIAssistantModal = ({ isOpen, onClose, onAddTasks }: AIAssistantModalProps) => {
@@ -62,18 +60,18 @@ const AIAssistantModal = ({ isOpen, onClose, onAddTasks }: AIAssistantModalProps
       const tasks = await generateTasksFromAI(prompt);
       setGeneratedTasks(tasks);
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-      setError(`Failed to connect to the AI assistant. ${errorMessage}`);
+      setError((e as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddSelectedTasks = () => {
-    const newTodos: Omit<Todo, 'id'>[] = generatedTasks.map(title => ({
+    const newTodos: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>[] = generatedTasks.map(title => ({
       title,
       completed: false,
-      userId: 1,
+      userId: 1, // This would typically come from the logged-in user
+      priority: 'low',
     }));
     onAddTasks(newTodos);
     handleClose();
@@ -105,9 +103,9 @@ const AIAssistantModal = ({ isOpen, onClose, onAddTasks }: AIAssistantModalProps
         {generatedTasks.length > 0 && (
           <div className="space-y-2 pt-4">
             <h3 className="font-semibold">Suggested Tasks:</h3>
-            <ul className="list-disc list-inside bg-gray-50 p-4 rounded-md">
+            <ul className="list-disc list-inside bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
               {generatedTasks.map((task, index) => (
-                <li key={index} className="text-gray-700">{task}</li>
+                <li key={index} className="text-gray-700 dark:text-gray-300">{task}</li>
               ))}
             </ul>
             <Button onClick={handleAddSelectedTasks} className="w-full !mt-4">Add to My List</Button>
