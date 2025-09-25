@@ -9,8 +9,12 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   AuthError,
+  User, // Import the User type
+  getAdditionalUserInfo, // Import to check for new users
 } from 'firebase/auth';
 import { auth } from '../firebase';
+import { addMultipleTodosToFirestore } from '../utils/api'; // Import our API function
+import { Todo } from '../utils/db'; // Import the Todo type
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { LoaderSpin } from '../components/Icons';
@@ -41,14 +45,25 @@ const EyeOffIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// ## This function is now corrected to be fully type-safe.
+const createDummyTasks = async (user: User) => {
+    // This type now correctly matches what addMultipleTodosToFirestore expects.
+    const dummyTodos: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>[] = [
+        { title: "Welcome to your new to-do list!", completed: false, priority: "medium", userId: 1 },
+        { title: "Click the pencil icon to edit this task", completed: false, priority: "low", userId: 1 },
+        { title: "Click the checkbox to mark a task as complete", completed: true, priority: "low", userId: 1 },
+        { title: "Use the 'AI Assistant' to generate new tasks", completed: false, priority: "high", userId: 1 },
+    ];
+    // The risky 'as' assertion is no longer needed.
+    await addMultipleTodosToFirestore(user.uid, dummyTodos);
+};
+
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(' ');
 
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Initialize state based on the URL search parameter.
-  // If '?mode=signup' is in the URL, show the signup form. Otherwise, show login.
   const [isLogin, setIsLogin] = useState(() => {
     const params = new URLSearchParams(location.search);
     return params.get('mode') !== 'signup';
@@ -97,8 +112,12 @@ const AuthPage = () => {
         navigate('/todos');
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: `${firstName.trim()} ${lastName.trim()}` });
-        await sendEmailVerification(userCredential.user);
+        const user = userCredential.user;
+        await updateProfile(user, { displayName: `${firstName.trim()} ${lastName.trim()}` });
+        
+        await createDummyTasks(user);
+        
+        await sendEmailVerification(user);
         setVerificationSent(true);
       }
     } catch (err) {
@@ -112,12 +131,19 @@ const AuthPage = () => {
     setLoading(true);
     clearState();
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      navigate('/todos');
+        const result = await signInWithPopup(auth, new GoogleAuthProvider());
+        const user = result.user;
+        const additionalInfo = getAdditionalUserInfo(result);
+
+        if (additionalInfo?.isNewUser) {
+            await createDummyTasks(user);
+        }
+
+        navigate('/todos');
     } catch (err) {
-      setError((err as AuthError).message);
+        setError((err as AuthError).message);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -138,17 +164,15 @@ const AuthPage = () => {
     }
   };
 
-  // Function to toggle between Login and Sign Up modes and update the URL
   const toggleAuthMode = () => {
     const newIsLogin = !isLogin;
     setIsLogin(newIsLogin);
     clearState();
 
-    // Update the URL without a full page reload
     if (newIsLogin) {
-      navigate('/login'); // Go to login mode
+      navigate('/login');
     } else {
-      navigate('/login?mode=signup'); // Go to signup mode
+      navigate('/login?mode=signup');
     }
   };
 
@@ -254,7 +278,6 @@ const AuthPage = () => {
                   <label htmlFor="email" className="dark:text-gray-200">Email</label>
                   <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} />
                 </div>
-                {/* Password input with the visibility toggle */}
                 <div className="grid gap-2">
                     <div className="flex items-center">
                         <label htmlFor="password" className="dark:text-gray-200">Password</label>
