@@ -33,9 +33,9 @@ const ConfirmDeleteModal = ({ isOpen, onClose, todo, onDeleteTodo }: ConfirmDele
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Are you absolutely sure?">
       <div className="py-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 dark:text-slate-400">
           This action cannot be undone. This will permanently delete the task:
-          <strong className="block mt-1 text-gray-700">{todo.title}</strong>
+          <strong className="block mt-1 text-gray-700 dark:text-slate-200">{todo.title}</strong>
         </p>
         {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
       </div>
