@@ -45,7 +45,7 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }: AddTodoModalProps) => {
     <Dialog isOpen={isOpen} onClose={onClose} title="Add a New Task" description="What do you need to get done?">
       <div className="grid gap-4 py-4">
         <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-medium">Title</label>
+            <label htmlFor="title" className="text-sm font-medium dark:text-slate-300">Title</label>
             <Input
             id="title"
             value={title}
@@ -58,11 +58,11 @@ const AddTodoModal = ({ isOpen, onClose, onAddTodo }: AddTodoModalProps) => {
         {/* Due Date and Priority */}
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <label htmlFor="due-date" className="text-sm font-medium">Due Date</label>
+                <label htmlFor="due-date" className="text-sm font-medium dark:text-slate-300">Due Date</label>
                 <Input id="due-date" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-                <label htmlFor="priority" className="text-sm font-medium">Priority</label>
+                <label htmlFor="priority" className="text-sm font-medium dark:text-slate-300">Priority</label>
                 <Select id="priority" value={priority} onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high')}>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>

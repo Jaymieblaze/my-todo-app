@@ -52,7 +52,7 @@ const TodoItem = ({ todo, onViewDetail, onEdit, onDelete }: TodoItemProps) => {
         </div>
       </div>
       
-      <div className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-4">
+      <div className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 ml-4">
         <button onClick={() => onEdit(todo)} className="p-2 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50" aria-label={`Edit todo: ${todo.title}`}>
           <EditIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
         </button>

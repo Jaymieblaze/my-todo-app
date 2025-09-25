@@ -56,7 +56,7 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }: EditTodoModalPro
     <Dialog isOpen={isOpen} onClose={onClose} title="Edit Task" description="Make changes to your task below.">
       <div className="grid gap-4 py-4">
         <div className="space-y-2">
-          <label htmlFor="edit-title" className="text-sm font-medium">Title</label>
+          <label htmlFor="edit-title" className="text-sm font-medium dark:text-slate-300">Title</label>
           <Input
             id="edit-title"
             value={title}
@@ -68,11 +68,11 @@ const EditTodoModal = ({ isOpen, onClose, todo, onUpdateTodo }: EditTodoModalPro
         {/* Due Date and Priority */}
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <label htmlFor="edit-due-date" className="text-sm font-medium">Due Date</label>
+                <label htmlFor="edit-due-date" className="text-sm font-medium dark:text-slate-300">Due Date</label>
                 <Input id="edit-due-date" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-                <label htmlFor="edit-priority" className="text-sm font-medium">Priority</label>
+                <label htmlFor="edit-priority" className="text-sm font-medium dark:text-slate-300">Priority</label>
                 <Select id="edit-priority" value={priority} onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high')}>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
