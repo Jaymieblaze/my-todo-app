@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -43,7 +43,16 @@ const EyeOffIcon = ({ className }: { className?: string }) => (
 
 
 const AuthPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Initialize state based on the URL search parameter.
+  // If '?mode=signup' is in the URL, show the signup form. Otherwise, show login.
+  const [isLogin, setIsLogin] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('mode') !== 'signup';
+  });
+
   const [isResetMode, setIsResetMode] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -54,7 +63,6 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [resetSentMessage, setResetSentMessage] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password: string) => password.length >= 8 && /\d/.test(password) && /[a-zA-Z]/.test(password);
@@ -129,11 +137,25 @@ const AuthPage = () => {
     }
   };
 
+  // Function to toggle between Login and Sign Up modes and update the URL
+  const toggleAuthMode = () => {
+    const newIsLogin = !isLogin;
+    setIsLogin(newIsLogin);
+    clearState();
+
+    // Update the URL without a full page reload
+    if (newIsLogin) {
+      navigate('/login'); // Go to login mode
+    } else {
+      navigate('/login?mode=signup'); // Go to signup mode
+    }
+  };
+
 
   if (verificationSent) {
     return (
       <div className="w-full h-full flex items-center justify-center p-4">
-        <div className="mx-auto grid w-[350px] gap-6">
+        <div className="mx-auto grid w-full max-w-[350px] gap-6">
           <div className="flex justify-center">
             <h2 className="text-2xl font-bold tracking-tight text-indigo-600">MyTodoApp</h2>
           </div>
@@ -169,8 +191,8 @@ const AuthPage = () => {
           }}
         />
       </div>
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
+      <div className="flex items-center justify-center py-12 px-6">
+        <div className="mx-auto grid w-full max-w-[350px] gap-6">
           
           <div className="flex justify-center">
             <h2 className="text-2xl font-bold tracking-tight text-indigo-600">MyTodoApp</h2>
@@ -206,7 +228,7 @@ const AuthPage = () => {
             <>
               <div className="grid gap-2 text-center">
                 <h1 className="text-3xl font-bold">
-                  {isLogin ? 'Welcome Back' : 'Create an Account'}
+                  {isLogin ? 'Welcome Back!' : 'Create an Account'}
                 </h1>
                 <p className="text-balance text-muted-foreground">
                   {isLogin 
@@ -274,7 +296,7 @@ const AuthPage = () => {
               </form>
               <div className="mt-4 text-center text-sm">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-                <button onClick={() => { setIsLogin(!isLogin); clearState(); }} className="font-medium text-indigo-600 hover:underline">
+                <button onClick={toggleAuthMode} className="font-medium text-indigo-600 hover:underline">
                   {isLogin ? 'Sign up' : 'Sign in'}
                 </button>
               </div>
