@@ -16,6 +16,7 @@ import SearchFilter from '../components/SearchFilter';
 import Button from '../components/Button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../components/Dropdown';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/Card';
+import { useOnlineStatus } from '../hooks/useOnlineStatus'; // Import the hook
 import { PlusIcon, LoaderSpin, SparklesIcon, ArrowUpDownIcon } from '../components/Icons';
 
 const TodosPage = () => {
@@ -35,6 +36,8 @@ const TodosPage = () => {
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   
+  const isOnline = useOnlineStatus(); // Use the hook to get online status
+
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
@@ -174,11 +177,11 @@ const TodosPage = () => {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-2xl text-gray-800 dark:text-slate-100">Hi {firstName},</CardTitle>
-              <CardDescription className="mt-1 dark:text-slate-400">Here are your real-time tasks.</CardDescription>
+              <CardDescription className="mt-1 dark:text-slate-400">Manage your daily tasks efficiently.</CardDescription>
             </div>
              <div className="flex items-center text-xs pt-1">
-              <span className="h-2 w-2 rounded-full mr-2 bg-green-500"></span>
-              <span className="text-gray-500 dark:text-slate-400">Live Sync</span>
+              <span className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
+              <span className="text-gray-500 dark:text-slate-400">{isOnline ? 'Live Sync' : 'Offline'}</span>
             </div>
           </div>
         </CardHeader>
