@@ -121,7 +121,19 @@ const AuthPage = () => {
         setVerificationSent(true);
       }
     } catch (err) {
-      setError((err as AuthError).message);
+      const authError = err as AuthError;
+      // Check for invalid credential on login
+      if (isLogin && authError.code === 'auth/invalid-credential') {
+        setError('Oops! That didn’t work. Please check your email and password.');
+      } 
+      // Check for existing email on signup
+      else if (!isLogin && authError.code === 'auth/email-already-in-use') {
+        setError('You’ve already registered with this email. Want to log in?');
+      } 
+      // For all other errors, show the default message
+      else {
+        setError(authError.message);
+      }
     } finally {
       setLoading(false);
     }
