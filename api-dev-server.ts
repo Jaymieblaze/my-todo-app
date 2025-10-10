@@ -1,11 +1,9 @@
-// api-dev-server.ts
-
 import express from 'express';
-import 'dotenv/config'; // Loads variables from .env file
+import 'dotenv/config'; 
 import Groq from 'groq-sdk';
 
 const app = express();
-const port = 3001; // We'll run the API on a separate port
+const port = 3001; 
 
 app.use(express.json());
 
@@ -15,7 +13,6 @@ if (!groqApiKey) {
 }
 const groq = new Groq({ apiKey: groqApiKey });
 
-// This endpoint matches your Vercel Function path
 app.post('/api/generate-tasks', async (req, res) => {
   console.log('Local API server received a request.');
   try {
