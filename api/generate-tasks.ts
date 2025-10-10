@@ -1,52 +1,65 @@
-// api/generate-tasks.ts
+﻿// in api/generate-tasks.ts
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import Groq from "groq-sdk";
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import Groq from 'groq-sdk';
 
-const groqApiKey = process.env.GROQ_API_KEY;
+// Initialize the Groq client with API key from environment variables
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
-// It's better to check for the key inside the handler to avoid startup crashes
-// but for now, ensuring it's in your .env.development.local will work.
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-const groq = new Groq({ apiKey: groqApiKey });
-
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
-  if (!groqApiKey) {
-    // You can also check for the key here for a cleaner error message
-    return res.status(500).json({ error: "API key is not configured." });
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
-  try {
-    const { prompt } = req.body;
+  // Check if API key is configured
+  if (!process.env.GROQ_API_KEY) {
+    console.error('GROQ_API_KEY is not set in Vercel environment.');
+    return res.status(500).json({ error: 'API key is not configured.' });
+  }
 
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
-    }
+  try {
+    const { prompt } = req.body;
 
-    const fullPrompt = `Generate a list of 3-5 todo tasks based on the following prompt: "${prompt}". The output should be a clean, unformatted list of tasks. Each task should be separated by a comma. For example: "Write a blog post about Next.js, Research new front-end frameworks, Deploy the project to Vercel". Do not include any markdown, numbering, or bullet points.`;
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
 
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: fullPrompt }],
-      model: "llama-3.1-8b-instant",
-    });
+    const fullPrompt = `Generate a list of 3-5 todo tasks based on the following prompt: "${prompt}". The output should be a clean, unformatted list of tasks. Each task should be separated by a comma. For example: "Write a blog post about Next.js, Research new front-end frameworks, Deploy the project to Vercel". Do not include any markdown, numbering, or bullet points.`;
 
-    const text = chatCompletion.choices[0]?.message?.content || "";
-    const tasks = text.split(",").map((task) => task.trim()).filter(Boolean);
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: fullPrompt }],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.5,
+      max_tokens: 1024,
+      top_p: 1,
+      stream: false,
+    });
 
-    res.status(200).json({ tasks });
-  } catch (error) {
-    console.error("Error in generate-tasks API route:", error);
-    res.status(500).json({
-      error: "Failed to generate tasks",
-      details:
-        error instanceof Error ? error.message : "An unknown error occurred",
-    });
-  }
+    const content = completion.choices[0]?.message?.content || '';
+
+    if (!content) {
+      throw new Error('No content in AI response.');
+    }
+
+    const tasks = content.split(',').map(task => task.trim()).filter(Boolean);
+
+    return res.status(200).json({ tasks });
+
+  } catch (error) {
+    console.error('Error calling Groq API:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return res.status(500).json({ error: 'Failed to generate tasks from AI.', details: errorMessage });
+  }
 }
